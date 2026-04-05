@@ -1,0 +1,5 @@
+# Ignore Java compiled bytecode
+*.class
+
+# Ignore build output directory
+/build/
