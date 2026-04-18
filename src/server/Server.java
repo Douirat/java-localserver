@@ -41,7 +41,12 @@ public class Server{
                 System.out.println("Client says: " + line);
 
                 // Step 7: write()
-                out.write("hello\n");
+                out.write("HTTP/1.1 200 OK\r\n");
+                out.write("Content-Type: text/plain\r\n");
+                out.write("Content-Length: 5\r\n");
+                out.write("\r\n");
+                out.write("hello");
+                out.flush();
                 out.flush();
 
                 // Step 8: close()
