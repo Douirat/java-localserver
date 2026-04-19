@@ -2,6 +2,7 @@ package server;
 
 import java.io.*;
 import java.net.*;
+import java.util.*;
 /**
  * Minimal TCP server in Java (Hello server)
 
@@ -36,9 +37,18 @@ public class Server{
                 BufferedWriter out = new BufferedWriter(
                         new OutputStreamWriter(client.getOutputStream()));
 
-                // Step 6: read()
-                String line = in.readLine();
-                System.out.println("Client says: " + line);
+        
+               
+                String line;
+                List<String> envolope = new ArrayList<>();
+
+                while ((line = in.readLine()) != null && !line.isEmpty()) {
+                    envolope.add(line);
+                }
+        
+               for(int i=0; i<envolope.size(); i++){
+                  System.out.println(i +": " +  envolope.get(i));
+               }
 
                 // Step 7: write()
                 out.write("HTTP/1.1 200 OK\r\n");
