@@ -1,45 +1,69 @@
-package types;
+import java.net.Socket;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.util.*;
+public class Request {
 
-public class Request{
-    private String  method;
-    private URL url;
-    private Map<String, String> headers;
+    private Socket socket;
 
-    // No args constructor:
-    public Request(){}
+    private String method;
+    private String path;
+    private String version;
 
-    // All args construtor:
-    public Request(String  method, URL url, Map<String, String> headers){
+    private final Map<String, String> headers = new HashMap<>();
+    private final Map<String, String> queryParameters = new HashMap<>();
+
+    public Request(Socket socket) {
+        this.socket = socket;
+    }
+
+    // --- controlled parsing API ---
+    public void setRequestLine(String method, String path, String version) {
         this.method = method;
-        this.url = url;
-        this.headers = headers;
+        this.path = path;
+        this.version = version;
     }
 
-    // getters and setters:
-    public void setMethod(String  method){
-        this.method = method;
+    public void addHeader(String key, String value) {
+        headers.put(key, value);
     }
 
-    public void setURL(URL url){
-        this.url = url;
+    public void addQueryParam(String key, String value) {
+        queryParameters.put(key, value);
     }
 
-    public void setHeaders( Map<String, String> headers){
-        this.headers = headers;
+    // --- GETTERS ---
+
+    public Socket getSocket() {
+        return socket;
     }
 
-    public String getMethod(){
-        return  this.method;
+    public String getMethod() {
+        return method;
     }
 
-    public URL getURL(){
-        return this.url;
+    public String getPath() {
+        return path;
     }
 
-    public Map<String, String> getHeaders(){
-        return this.headers;
+    public String getVersion() {
+        return version;
     }
-          
+
+    /**
+     * Important: expose read-only view to avoid external mutation
+     */
+    public Map<String, String> getHeaders() {
+        return Collections.unmodifiableMap(headers);
+    }
+
+    public Map<String, String> getQueryParameters() {
+        return Collections.unmodifiableMap(queryParameters);
+    }
+
+    // optional convenience method
+    public String getHeader(String key) {
+        return headers.get(key);
+    }
 }
