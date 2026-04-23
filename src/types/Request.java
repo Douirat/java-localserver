@@ -1,3 +1,5 @@
+package types;
+
 import java.net.Socket;
 import java.util.Collections;
 import java.util.HashMap;
@@ -13,16 +15,37 @@ public class Request {
 
     private final Map<String, String> headers = new HashMap<>();
     private final Map<String, String> queryParameters = new HashMap<>();
+    // private final Map<String, String> pathVariables = new HashMap<>(); // TODO: add the path variables as well;
 
     public Request(Socket socket) {
         this.socket = socket;
     }
 
     // --- controlled parsing API ---
-    public void setRequestLine(String method, String path, String version) {
-        this.method = method;
-        this.path = path;
-        this.version = version;
+    public void setRequestLine(String[] requestLine) {
+
+        this.method = requestLine[0];
+        this.path = requestLine[1];
+        this.version = requestLine[2];
+
+        if (this.path.contains("?")) {
+
+            int ind = this.path.indexOf("?");
+
+            String query = this.path.substring(ind + 1);
+            this.path = this.path.substring(0, ind);
+
+            String[] queryList = query.split("&");
+
+            for (String q : queryList) {
+                String[] qs = q.split("=");
+
+                String key = qs[0];
+                String value = qs.length > 1 ? qs[1] : "";
+
+                this.queryParameters.put(key, value);
+            }
+        }
     }
 
     public void addHeader(String key, String value) {
@@ -65,5 +88,44 @@ public class Request {
     // optional convenience method
     public String getHeader(String key) {
         return headers.get(key);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("=== HTTP REQUEST ===\n");
+
+        sb.append("Method: ").append(method).append("\n");
+        sb.append("Path: ").append(path).append("\n");
+        sb.append("Version: ").append(version).append("\n");
+
+        sb.append("\n--- Headers ---\n");
+        if (headers.isEmpty()) {
+            sb.append("(none)\n");
+        } else {
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                sb.append(entry.getKey())
+                .append(": ")
+                .append(entry.getValue())
+                .append("\n");
+            }
+        }
+
+        sb.append("\n--- Query Parameters ---\n");
+        if (queryParameters.isEmpty()) {
+            sb.append("(none)\n");
+        } else {
+            for (Map.Entry<String, String> entry : queryParameters.entrySet()) {
+                sb.append(entry.getKey())
+                .append("=")
+                .append(entry.getValue())
+                .append("\n");
+            }
+        }
+
+        sb.append("\n=== END REQUEST ===\n");
+
+        return sb.toString();
     }
 }

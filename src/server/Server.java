@@ -3,6 +3,7 @@ package server;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import types.Request;
 /**
  * Minimal TCP server in Java (Hello server)
 
@@ -29,6 +30,9 @@ public class Server{
                 while(true){
                 // Step 4 + 5: accept()
                 Socket client = server.accept();
+
+                Request request = new Request(client);
+
                 System.out.println("Client connected");
 
                 // Streams to communicate with client
@@ -38,17 +42,21 @@ public class Server{
                         new OutputStreamWriter(client.getOutputStream()));
 
         
-               
-                String line;
-                List<String> envolope = new ArrayList<>();
+               // Extract and parse the first line:
+                String line = in.readLine();
+                String[] requestLine = line.split(" ");
 
+                request.setRequestLine(requestLine);
+
+
+                // Extract ans parse the headers:
                 while ((line = in.readLine()) != null && !line.isEmpty()) {
-                    envolope.add(line);
+                    String[] header = line.split(":");
+                    String key = header[0];
+                    String value = header.length > 1 ? header[1] : "";
+                    request.addHeader(key, value);
                 }
         
-               for(int i=0; i<envolope.size(); i++){
-                  System.out.println(i +": " +  envolope.get(i));
-               }
 
                 // Step 7: write()
                 out.write("HTTP/1.1 200 OK\r\n");
@@ -58,6 +66,8 @@ public class Server{
                 out.write("hello");
                 out.flush();
                 out.flush();
+
+                System.out.println("request ===>"+ request.toString());
 
                 // Step 8: close()
                 client.close();
