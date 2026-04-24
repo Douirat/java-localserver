@@ -14,6 +14,7 @@ accepts clients
 reads what they send
 replies "hello"
 */
+// TODO: Need to study the head and option methods:
 
 public class Server{
     private int port;
@@ -76,9 +77,8 @@ public class Server{
                 out.write("\r\n");
                 out.write("hello");
                 out.flush();
-                out.flush();
 
-                System.out.println("request ===>"+ request.toString());
+                System.out.println("here where we pass a request to the router ===>"+ request.toString());
 
                 // Step 8: close()
                 client.close();
