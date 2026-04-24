@@ -17,6 +17,8 @@ public class Request {
     private final Map<String, String> queryParameters = new HashMap<>();
     // private final Map<String, String> pathVariables = new HashMap<>(); // TODO: add the path variables as well;
 
+    private byte[] body;
+
     public Request(Socket socket) {
         this.socket = socket;
     }
@@ -90,6 +92,15 @@ public class Request {
         return headers.get(key);
     }
 
+    // Body comes after the header is handled:
+    public void setBody(byte[] body) {
+        this.body = body;
+    }
+
+    public byte[] getBody() {
+        return body;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -123,6 +134,11 @@ public class Request {
                 .append("\n");
             }
         }
+
+           sb.append("\n--- Body ---\n");
+           if(this.body.length > 0){
+            sb.append(body.toString());
+           }
 
         sb.append("\n=== END REQUEST ===\n");
 

@@ -13,7 +13,7 @@ listens on port 8080
 accepts clients
 reads what they send
 replies "hello"
- */
+*/
 
 public class Server{
     private int port;
@@ -36,27 +36,38 @@ public class Server{
                 System.out.println("Client connected");
 
                 // Streams to communicate with client
-                BufferedReader in = new BufferedReader(
-                        new InputStreamReader(client.getInputStream()));
+               InputStream in = client.getInputStream();
                 BufferedWriter out = new BufferedWriter(
                         new OutputStreamWriter(client.getOutputStream()));
 
         
                // Extract and parse the first line:
-                String line = in.readLine();
+                String line = readLine(in);
                 String[] requestLine = line.split(" ");
 
                 request.setRequestLine(requestLine);
 
 
                 // Extract ans parse the headers:
-                while ((line = in.readLine()) != null && !line.isEmpty()) {
+                while ((line = readLine(in)) != null && !line.isEmpty()) {
                     String[] header = line.split(":");
-                    String key = header[0];
-                    String value = header.length > 1 ? header[1] : "";
+                    String key = header[0].trim();
+                    String value = header.length > 1 ? header[1].trim() : "";
                     request.addHeader(key, value);
                 }
-        
+                
+                String lenHeader = request.getHeader("Content-Length");
+
+                if (lenHeader != null) {
+                    int size = Integer.parseInt(lenHeader);
+                    InputStream is = client.getInputStream();
+                    System.out.println("the length check: " + size);
+                    byte[] body = readBody(is, size);
+                    request.setBody(body);
+                }
+
+                // String str1 = new String(request.getBody());
+                // System.out.println("str1 >> "+str1);
 
                 // Step 7: write()
                 out.write("HTTP/1.1 200 OK\r\n");
@@ -77,4 +88,39 @@ public class Server{
                     e.printStackTrace();
             }
     }
+
+        public static String readLine(InputStream in) throws IOException {
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+            int prev = -1;
+            int curr;
+
+            while ((curr = in.read()) != -1) {
+                if (prev == '\r' && curr == '\n') {
+                    break;
+                }
+                if (prev != -1) buffer.write(prev);
+                prev = curr;
+            }
+
+            return buffer.toString();
+        }
+
+    public static byte[] readBody(InputStream in, int contentLength) throws IOException {
+        byte[] body = new byte[contentLength];
+        int totalRead = 0;
+
+        while (totalRead < contentLength) {
+            int bytesRead = in.read(body, totalRead, contentLength - totalRead);
+
+            if (bytesRead == -1) {
+                throw new IOException("Client closed connection before sending full body");
+            }
+
+            totalRead += bytesRead;
+        }
+
+        return body;
+    }
+
 }
