@@ -41,8 +41,8 @@ public class Server{
 
                 // Streams to communicate with client
                InputStream in = client.getInputStream();
-                BufferedWriter out = new BufferedWriter(
-                        new OutputStreamWriter(client.getOutputStream()));
+                // BufferedWriter out = new BufferedWriter(
+                //         new OutputStreamWriter(client.getOutputStream()));
 
         
                // Extract and parse the first line:
@@ -70,16 +70,21 @@ public class Server{
                     request.setBody(body);
                 }
 
+
+                // server the request:
+                this.router.serve(request);
+
+
                 // String str1 = new String(request.getBody());
                 // System.out.println("str1 >> "+str1);
 
                 // Step 7: write()
-                out.write("HTTP/1.1 200 OK\r\n");
-                out.write("Content-Type: text/plain\r\n");
-                out.write("Content-Length: 5\r\n");
-                out.write("\r\n");
-                out.write("hello");
-                out.flush();
+                // out.write("HTTP/1.1 200 OK\r\n");
+                // out.write("Content-Type: text/plain\r\n");
+                // out.write("Content-Length: 5\r\n");
+                // out.write("\r\n");
+                // out.write("hello");
+                // out.flush();
 
               
 
