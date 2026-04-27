@@ -1,7 +1,7 @@
 package router;
 
 import java.util.*;
-import types.*;
+import http.*;
 
 
 public class Router{
@@ -27,7 +27,8 @@ public class Router{
     }
 
 // The API to expose to the server in order to pass in requests:
-public void serve(Request request){
-    System.out.println("the request to serve >>==== > \n" + request.toString());
+public Response serve(Request request){
+    Map<String, Handler> routesMap = this.routes.get(request.getMethod().toUpperCase());
+    return routesMap.get(request.getPath()).handle(request);
 }
 }

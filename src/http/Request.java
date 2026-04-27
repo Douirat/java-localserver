@@ -1,13 +1,10 @@
-package types;
+package http;
 
-import java.net.Socket;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Request {
-
-    private Socket socket;
 
     private String method;
     private String path;
@@ -19,8 +16,8 @@ public class Request {
 
     private byte[] body;
 
-    public Request(Socket socket) {
-        this.socket = socket;
+    public Request() {
+
     }
 
     // --- controlled parsing API ---
@@ -60,9 +57,7 @@ public class Request {
 
     // --- GETTERS ---
 
-    public Socket getSocket() {
-        return socket;
-    }
+
 
     public String getMethod() {
         return method;
