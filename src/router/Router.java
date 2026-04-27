@@ -1,7 +1,8 @@
 package router;
 
-import types.Handler;
-import types.Request;
+import java.util.*;
+import types.*;
+
 
 public class Router{
     // method => path => Response handle(Request req);
@@ -27,6 +28,6 @@ public class Router{
 
 // The API to expose to the server in order to pass in requests:
 public void serve(Request request){
-
+    System.out.println("the request to serve >>==== > \n" + request.toString());
 }
 }

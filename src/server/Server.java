@@ -3,7 +3,8 @@ package server;
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import types.Request;
+import types.*;
+import router.*;
 /**
  * Minimal TCP server in Java (Hello server)
 
@@ -18,10 +19,12 @@ replies "hello"
 
 public class Server{
     private int port;
+    private Router router;
 
     // All args constructor.
-    public Server(int port){
+    public Server(int port, Router router){
         this.port = port;
+        this.router = router;
     }
 
     public void listenAndServe(){
@@ -78,7 +81,7 @@ public class Server{
                 out.write("hello");
                 out.flush();
 
-                System.out.println("here where we pass a request to the router ===>"+ request.toString());
+              
 
                 // Step 8: close()
                 client.close();
