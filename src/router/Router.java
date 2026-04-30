@@ -29,6 +29,15 @@ public class Router{
 // The API to expose to the server in order to pass in requests:
 public Response serve(Request request){
     Map<String, Handler> routesMap = this.routes.get(request.getMethod().toUpperCase());
-    return routesMap.get(request.getPath()).handle(request);
+    Handler handler = routesMap.get(request.getPath());
+
+    if (handler == null) {
+        Response res = new Response();
+        res.setStatus(404);
+        res.setHeader("Content-Type", "text/plain");
+        res.setBody("Route not found");
+        return res;
+    }
+    return handler.handle(request);
 }
 }

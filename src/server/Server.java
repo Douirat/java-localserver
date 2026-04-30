@@ -4,6 +4,10 @@ import http.*;
 import java.io.*;
 import java.net.*;
 import router.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.lang.reflect.Field;
+
 
 /**
  * Minimal TCP server in Java (Hello server)
@@ -19,8 +23,6 @@ public class Server {
     private int port;
     private Router router;
 
-
-    private final ObjectMapper mapper = new ObjectMapper();
 
     // All args constructor.
     public Server(int port, Router router) {
@@ -51,7 +53,13 @@ public class Server {
         Response response = this.router.serve(request);
         response.setVersion(request.getVersion());
         // TODO: write the response back to the client: maybe a response writer.
-        System.out.println(response.toString());
+        try {
+            OutputStream out = client.getOutputStream();
+            this.writeResponse(out, response);
+            client.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private Request requestParser(Socket client) {
@@ -166,10 +174,41 @@ public class Server {
             if (response.getHeader("Content-Type") == null) {
                 response.setHeader("Content-Type", "application/json");
             }
-            return mapper.writeValueAsBytes(body);
+            return simpleJson(body).getBytes(StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new RuntimeException("Failed to serialize response body", e);
         }
     }
+
+    private String simpleJson(Object obj) {
+
+    StringBuilder sb = new StringBuilder();
+    sb.append("{");
+
+    Field[] fields = obj.getClass().getDeclaredFields();
+
+    for (int i = 0; i < fields.length; i++) {
+        try {
+            fields[i].setAccessible(true);
+            Object value = fields[i].get(obj);
+
+            sb.append("\"")
+              .append(fields[i].getName())
+              .append("\":\"")
+              .append(value)
+              .append("\"");
+
+            if (i < fields.length - 1) {
+                sb.append(",");
+            }
+
+        } catch (Exception e) {
+            // ignore field
+        }
+    }
+
+    sb.append("}");
+    return sb.toString();
+}
 
 }

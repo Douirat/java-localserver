@@ -1,21 +1,28 @@
 import server.*;
 import http.*;
 import router.Router;
+import models.User;
 
+public class Main {
+    public static void main(String[] args) {
 
-public class Main{
-    public static void main(String[] args){
         Router router = new Router();
-        
-        router.addRoute("POST", "/api/comments", (Request request)->{
+
+        router.addRoute("POST", "/api/users", (Request request) -> {
+
             String data = new String(request.getBody());
-            System.out.println(data);
+            System.out.println("RAW INPUT: " + data);
+
+            // create a test object (simulate DB or logic)
+            User user = new User("Ali", 25, "ali@test.com");
+
             Response response = new Response();
-            response.setVersion("HTTP/1.1");
             response.setStatus(200);
-            response.setStatusReason(200);
-            response.setHeader("Content-Type", "text/plain");
-            response.setBody(data);
+            response.setHeader("Content-Type", "application/json");
+
+            // IMPORTANT: this should go through your serializer
+            response.setBody(user);
+
             return response;
         });
 

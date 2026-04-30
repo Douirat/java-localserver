@@ -41,6 +41,13 @@ public class Response {
 
     public String getHeader(String key){return this.headers.get(key);}
 
+   
+   
+
+    public Map<String, String> getHeaders() {
+        return Collections.unmodifiableMap(headers);
+    }
+
     public Object getBody(){return this.body;}
 
     // toString method for debugging:
