@@ -19,6 +19,9 @@ public class Server {
     private int port;
     private Router router;
 
+
+    private final ObjectMapper mapper = new ObjectMapper();
+
     // All args constructor.
     public Server(int port, Router router) {
         this.port = port;
@@ -125,6 +128,48 @@ public class Server {
         }
 
         return body;
+    }
+
+    private void writeResponse(OutputStream out, Response response) throws IOException {
+        // 1. Serialize first — this may set headers (e.g. Content-Type)
+        byte[] bodyBytes = serializeResponse(response);
+
+        // 2. Now Content-Length is also known
+        if (bodyBytes.length > 0) {
+            response.setHeader("Content-Length", String.valueOf(bodyBytes.length));
+        }
+
+        // 3. Write status line
+        String statusLine = response.getVersion() + " " + response.getStatus() + " " + response.getStatusReason() + "\r\n";
+        out.write(statusLine.getBytes(StandardCharsets.UTF_8));
+
+        // 4. Write headers — now complete
+        for (Map.Entry<String, String> header : response.getHeaders().entrySet()) {
+            String headerLine = header.getKey() + ": " + header.getValue() + "\r\n";
+            out.write(headerLine.getBytes(StandardCharsets.UTF_8));
+        }
+
+        // 5. Empty line + body
+        out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+        out.write(bodyBytes);
+    }
+
+    // create a method to serialize the reponse to bytes:
+    private byte[] serializeResponse(Response response) {
+        Object body = response.getBody();
+        if (body == null) return new byte[0];
+        if (body instanceof byte[]) return (byte[]) body;
+        if (body instanceof String) return ((String) body).getBytes(StandardCharsets.UTF_8);
+
+        try {
+            // Auto-set Content-Type if not already set
+            if (response.getHeader("Content-Type") == null) {
+                response.setHeader("Content-Type", "application/json");
+            }
+            return mapper.writeValueAsBytes(body);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize response body", e);
+        }
     }
 
 }

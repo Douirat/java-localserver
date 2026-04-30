@@ -15,12 +15,16 @@ public class Response {
     // Setters:
     public void setVersion(String version){this.version = version;}
 
-    public void setStatus(int status){this.status = status;}
-
-    public void setStatusReason(int statusReason){
-        String message = HttpStatusMessages.getMessage(this.status);
-        this.statusReason = message;
+   // Option A: derive reason automatically when status is set
+    public void setStatus(int status) {
+        this.status = status;
+        this.statusReason = HttpStatusMessages.getMessage(status);
     }
+
+    // public void setStatusReason(int statusReason){
+    //     String message = HttpStatusMessages.getMessage(this.status);
+    //     this.statusReason = message;
+    // }
 
     public void setHeader(String key, String value){
         this.headers.put(key, value);
