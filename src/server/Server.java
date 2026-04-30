@@ -34,14 +34,7 @@ public class Server {
                 Socket client = server.accept();
                 this.handleConnection(client);
 
-                // Step 7: write()
-                // out.write("HTTP/1.1 200 OK\r\n");
-                // out.write("Content-Type: text/plain\r\n");
-                // out.write("Content-Length: 5\r\n");
-                // out.write("\r\n");
-                // out.write("hello");
-                // out.flush();
-                // Step 8: close()
+   
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -53,10 +46,13 @@ public class Server {
         Request request = this.requestParser(client);
         // server the request:
         Response response = this.router.serve(request);
+        response.setVersion(request.getVersion());
+        // TODO: write the response back to the client: maybe a response writer.
+        System.out.println(response.toString());
     }
 
     private Request requestParser(Socket client) {
-        Request request = new Request(client);
+        Request request = new Request();
         System.out.println("Client connected");
 
         try {

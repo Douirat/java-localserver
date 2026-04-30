@@ -11,6 +11,11 @@ public class Main{
             String data = new String(request.getBody());
             System.out.println(data);
             Response response = new Response();
+            response.setVersion("HTTP/1.1");
+            response.setStatus(200);
+            response.setStatusReason(200);
+            response.setHeader("Content-Type", "text/plain");
+            response.setBody(data);
             return response;
         });
 
