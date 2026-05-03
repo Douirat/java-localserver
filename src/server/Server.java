@@ -23,6 +23,10 @@ public class Server {
     private int port;
     private Router router;
 
+    private String origin = "*";
+    private String allowedMethods = "GET, POST, PUT, DELETE, PATCH, OPTIONS";
+    private String allowedHeaders = "Content-Type, Authorization";
+
 
     // All args constructor.
     public Server(int port, Router router) {
@@ -49,17 +53,48 @@ public class Server {
     // create a connection handler:
     private void handleConnection(Socket client) {
         Request request = this.requestParser(client);
+        System.out.println("Received request: "+ request.toString());
+        if(request.getMethod().equalsIgnoreCase("OPTIONS")){
+            Response res = new Response();
+            res.setStatus(204);
+            res.setHeader("Access-Control-Allow-Origin", this.origin);
+            res.setHeader("Access-Control-Allow-Methods", this.allowedMethods);
+            res.setHeader("Access-Control-Allow-Headers", this.allowedHeaders);
+            try {
+                writeResponse(client, res);
+            } catch (IOException e) {
+                System.err.println("Failed to write response to client");
+            }
+            finally {
+                try {
+                    client.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            return;
+        }
         // server the request:
         Response response = this.router.serve(request);
         response.setVersion(request.getVersion());
+        // Auto-set Content-Type if not already set
+            if (response.getHeader("Content-Type") == null) {
+                response.setHeader("Content-Type", "application/json");
+            }
+
         // TODO: write the response back to the client: maybe a response writer.
-        try {
-            OutputStream out = client.getOutputStream();
-            this.writeResponse(out, response);
-            client.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+            try {
+            writeResponse(client, response);
+            } catch (IOException e) {
+            System.err.println("Failed to write response to client");
+            }
+            finally {
+                try {
+                    client.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
     }
 
     private Request requestParser(Socket client) {
@@ -138,7 +173,10 @@ public class Server {
         return body;
     }
 
-    private void writeResponse(OutputStream out, Response response) throws IOException {
+    private void writeResponse(Socket client, Response response) throws IOException {
+        
+            OutputStream out = client.getOutputStream();
+        
         // 1. Serialize first — this may set headers (e.g. Content-Type)
         byte[] bodyBytes = serializeResponse(response);
 
@@ -170,17 +208,14 @@ public class Server {
         if (body instanceof String) return ((String) body).getBytes(StandardCharsets.UTF_8);
 
         try {
-            // Auto-set Content-Type if not already set
-            if (response.getHeader("Content-Type") == null) {
-                response.setHeader("Content-Type", "application/json");
-            }
+
             return simpleJson(body).getBytes(StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new RuntimeException("Failed to serialize response body", e);
         }
     }
 
-    private String simpleJson(Object obj) {
+private String simpleJson(Object obj) {
 
     StringBuilder sb = new StringBuilder();
     sb.append("{");
@@ -210,5 +245,4 @@ public class Server {
     sb.append("}");
     return sb.toString();
 }
-
 }

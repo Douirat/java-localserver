@@ -18,6 +18,7 @@ public class Router{
         routes.put("PUT", new HashMap<>());
         routes.put("DELETE", new HashMap<>());
         routes.put("PATCH", new HashMap<>());
+        routes.put("OPTIONS", new HashMap<>());
     }
 
 // The API to expose to application to add routes: method => path ==> handler()!
@@ -43,6 +44,15 @@ public class Router{
 // The API to expose to the server in order to pass in requests:
 public Response serve(Request request){
     Map<String, Handler> routesMap = this.routes.get(request.getMethod().toUpperCase());
+
+    if(routesMap == null) {
+        Response res = new Response();
+        res.setStatus(405);
+        res.setHeader("Content-type", "text/plain");
+        res.setBody("Method not allowed");
+        return res;
+    }
+
     Handler handler = routesMap.get(request.getPath());
 
     if (handler == null) {

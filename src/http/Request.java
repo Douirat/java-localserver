@@ -3,6 +3,7 @@ package http;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.nio.charset.StandardCharsets;
 
 public class Request {
 
@@ -131,8 +132,10 @@ public class Request {
         }
 
            sb.append("\n--- Body ---\n");
-           if(this.body.length > 0){
-            sb.append(body.toString());
+           if(this.body == null){
+            sb.append("(none)\n");
+           }else if(this.body.length > 0){
+            sb.append(new String(this.body, StandardCharsets.UTF_8));
            }
 
         sb.append("\n=== END REQUEST ===\n");
