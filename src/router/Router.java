@@ -2,6 +2,7 @@ package router;
 
 import java.util.*;
 import http.*;
+import exceptions.*;
 
 
 public class Router{
@@ -20,10 +21,23 @@ public class Router{
     }
 
 // The API to expose to application to add routes: method => path ==> handler()!
-    public void addRoute(String method, String route, Handler handler){
-        Map<String, Handler> routesMap = this.routes.get(method.toUpperCase());
-        // TODO: HANDLING ABSENCE ERROR: Error mechanism should be created:
-        routesMap.put(route, handler);
+    public void addRoute(String method, String path, Handler handler){
+        
+    if(method == null || !isValidMethod(method) || path == null || handler == null) {
+        throw new IllegalRouteException("Invalid method or route or handler");
+    }
+
+    Map<String, Handler> routesMap = this.routes.get(method.toUpperCase());
+    
+    if ( routesMap == null) {
+        throw new MethodException("Unsupported HTTP method: " + method);
+    }
+
+    if(routesMap.containsKey(path)) {
+        throw new PathException("Route already exists: " + path);
+    }
+
+    routesMap.put(path, handler);
     }
 
 // The API to expose to the server in order to pass in requests:
@@ -39,5 +53,16 @@ public Response serve(Request request){
         return res;
     }
     return handler.handle(request);
+}
+
+// check a valid method:
+public boolean isValidMethod(String method){
+    return routes.containsKey(method.toUpperCase());
+}
+
+// use Regex expression to check valid path:
+public boolean isValidPath(String method, String path){
+    // Simple regex for path validation (can be expanded based on requirements)
+    return path.matches("/[a-zA-Z0-9/_-]*");
 }
 }
