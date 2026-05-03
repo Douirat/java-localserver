@@ -55,11 +55,20 @@ public class Server {
         Request request = this.requestParser(client);
         System.out.println("Received request: "+ request.toString());
         if(request.getMethod().equalsIgnoreCase("OPTIONS")){
+            System.out.println("CORS");
             Response res = new Response();
+            res.setVersion(request.getVersion());
             res.setStatus(204);
-            res.setHeader("Access-Control-Allow-Origin", this.origin);
+            if(request.getHeader("Origin") != null) {
+                res.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
+            }else {
+                res.setHeader("Access-Control-Allow-Origin", this.origin);
+            }
             res.setHeader("Access-Control-Allow-Methods", this.allowedMethods);
             res.setHeader("Access-Control-Allow-Headers", this.allowedHeaders);
+
+            System.out.println("Sending CORS preflight response: " + res.toString());
+
             try {
                 writeResponse(client, res);
             } catch (IOException e) {
@@ -114,10 +123,12 @@ public class Server {
 
             // Extract ans parse the headers:
             while ((line = readLine(in)) != null && !line.isEmpty()) {
-                String[] header = line.split(":");
-                String key = header[0].trim();
-                String value = header.length > 1 ? header[1].trim() : "";
-                request.addHeader(key, value);
+            int idx = line.indexOf(':');
+                if (idx == -1) continue; // invalid header line
+
+                String key = line.substring(0, idx).trim();
+                String value = line.substring(idx + 1).trim();
+                    request.addHeader(key, value);
             }
 
             String lenHeader = request.getHeader("Content-Length");
@@ -197,7 +208,9 @@ public class Server {
 
         // 5. Empty line + body
         out.write("\r\n".getBytes(StandardCharsets.UTF_8));
-        out.write(bodyBytes);
+        if(bodyBytes.length > 0) {
+            out.write(bodyBytes);
+        }
     }
 
     // create a method to serialize the reponse to bytes:
