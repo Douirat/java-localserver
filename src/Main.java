@@ -26,20 +26,6 @@ public class Main {
             return response;
         });
 
-     /**
-      * 
-        # API URL
-        LOGIN_URL="http://localhost:8080/api/users/login"
-
-        # JSON payload
-        read -r -d '' PAYLOAD << EOM
-        {
-        "emailOrUsername": "john1@example.com",
-        "password": "password123"
-        }
-        EOM
-      */
-
      router.addRoute("POST", "/api/users/login", (Request request) -> {
         String data = new String(request.getBody());
         System.out.println("RAW INPUT: " + data);
@@ -52,6 +38,23 @@ public class Main {
         response.setBody(user);
         return response;
      });
+
+    // add a route to test extraction path variables:
+    router.addRoute("GET", "/api/posts/{postId}/users/{userId}", (Request request) -> {
+        // Access path variables
+        String postId = request.getPathVariables().get("postId");
+        String userId = request.getPathVariables().get("userId");
+
+        System.out.println("Post ID: " + postId);
+        System.out.println("User ID: " + userId);
+
+        // Simulate a response
+        Response response = new Response();
+        response.setStatus(200);
+        response.setHeader("Content-Type", "application/json");
+        response.setBody("Post ID: " + postId + ", User ID: " + userId);
+        return response;
+    });
 
         Server server = new Server(8080, router);
         server.listenAndServe();

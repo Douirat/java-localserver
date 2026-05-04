@@ -13,7 +13,7 @@ public class Request {
 
     private final Map<String, String> headers = new HashMap<>();
     private final Map<String, String> queryParameters = new HashMap<>();
-    // private final Map<String, String> pathVariables = new HashMap<>(); // TODO: add the path variables as well;
+    private final Map<String, String> pathVariables = new HashMap<>(); 
 
     private byte[] body;
 
@@ -86,6 +86,15 @@ public class Request {
     // optional convenience method
     public String getHeader(String key) {
         return headers.get(key);
+    }
+
+    // path variables are set by the router when matching dynamic routes (e.g., /api/users/{id})
+    public void addPathVariable(String key, String value) {
+        pathVariables.put(key, value);
+    }
+
+    public Map<String, String> getPathVariables() {
+        return Collections.unmodifiableMap(pathVariables);
     }
 
     // Body comes after the header is handled:
