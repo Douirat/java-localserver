@@ -23,15 +23,35 @@ public class Server {
     private int port;
     private Router router;
 
-    private String origin = "*";
-    private String allowedMethods = "GET, POST, PUT, DELETE, PATCH, OPTIONS";
-    private String allowedHeaders = "Content-Type, Authorization";
+    private String defaultOrigin = "*";
+    private String defaultAllowedMethods = "GET, POST, PUT, DELETE, PATCH, OPTIONS";
+    private String defaultAllowedHeaders = "Content-Type, Authorization";
+
+    private String origin;
+    private String allowedMethods;
+    private String allowedHeaders;
 
 
     // All args constructor.
     public Server(int port, Router router) {
         this.port = port;
         this.router = router;
+        this.origin = this.defaultOrigin;
+        this.allowedMethods = this.defaultAllowedMethods;
+        this.allowedHeaders = this.defaultAllowedHeaders;
+    }
+
+    // setters for CORS configuration:
+    public void setOrigin(String origin){
+        this.origin = origin;
+    }
+
+    public void setAllowedMethods(String allowedMethods){
+        this.allowedMethods = allowedMethods;
+    }
+
+    public void setAllowedHeaders(String allowedHeaders){
+        this.allowedHeaders = allowedHeaders;
     }
 
     public void listenAndServe() {
@@ -52,40 +72,55 @@ public class Server {
 
     // create a connection handler:
     private void handleConnection(Socket client) {
+
+        // Step 6: read the request, parse it, and create a Request object:
         Request request = this.requestParser(client);
         System.out.println("Received request: "+ request.toString());
+
+
+            String responseOrigin = this.origin.equals("*") ? request.getHeader("Origin") : this.origin;
+// Handle CORS preflight request:
         if(request.getMethod().equalsIgnoreCase("OPTIONS")){
-            System.out.println("CORS");
+            
             Response res = new Response();
             res.setVersion(request.getVersion());
             res.setStatus(204);
-            if(request.getHeader("Origin") != null) {
-                res.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
-            }else {
-                res.setHeader("Access-Control-Allow-Origin", this.origin);
-            }
+
+
+            res.setHeader("Access-Control-Allow-Origin", responseOrigin);
             res.setHeader("Access-Control-Allow-Methods", this.allowedMethods);
             res.setHeader("Access-Control-Allow-Headers", this.allowedHeaders);
 
             System.out.println("Sending CORS preflight response: " + res.toString());
+
 
             try {
                 writeResponse(client, res);
             } catch (IOException e) {
                 System.err.println("Failed to write response to client");
             }
+
             finally {
                 try {
                     client.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                      System.err.println("Issue closing client's connection: " + e.getMessage());
                 }
             }
             return;
         }
+
         // server the request:
         Response response = this.router.serve(request);
         response.setVersion(request.getVersion());
+
+                    // add the CORS headers to every response:
+                if (request.getHeader("Origin") != null) {
+                    response.setHeader("Access-Control-Allow-Origin", responseOrigin);
+                } else {
+                    response.setHeader("Access-Control-Allow-Origin", this.origin);
+                }
+
         // Auto-set Content-Type if not already set
             if (response.getHeader("Content-Type") == null) {
                 response.setHeader("Content-Type", "application/json");
@@ -95,13 +130,13 @@ public class Server {
             try {
             writeResponse(client, response);
             } catch (IOException e) {
-            System.err.println("Failed to write response to client");
+            System.err.println("Failed to write response to client: " + e.getMessage());
             }
             finally {
                 try {
                     client.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                        System.err.println("Issue closing client's connection: " + e.getMessage());
                 }
             }
     }
@@ -112,8 +147,7 @@ public class Server {
 
         try {
             InputStream in = client.getInputStream();
-            // BufferedWriter out = new BufferedWriter(
-            // new OutputStreamWriter(client.getOutputStream()));
+           
 
             // Extract and parse the first line:
             String line = readLine(in);
@@ -142,7 +176,7 @@ public class Server {
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Failed to read request from client: " + e.getMessage());
         }
 
         return request;
@@ -185,7 +219,9 @@ public class Server {
     }
 
     private void writeResponse(Socket client, Response response) throws IOException {
-        
+            System.out.println("writing respose: " + response.toString());
+            
+
             OutputStream out = client.getOutputStream();
         
         // 1. Serialize first — this may set headers (e.g. Content-Type)
