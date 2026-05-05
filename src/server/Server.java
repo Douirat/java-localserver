@@ -261,8 +261,21 @@ public class Server {
         if (body instanceof String) return ((String) body).getBytes(StandardCharsets.UTF_8);
         if (body instanceof Number || body instanceof Boolean) return body.toString().getBytes(StandardCharsets.UTF_8);
 
+        /**
+        if(body instanceof List) return ListToJson((List<?>) body).getBytes(StandardCharsets.UTF_8);
         if(body instanceof Map) return MapToJson((Map<?,?>) body).getBytes(StandardCharsets.UTF_8);
-        
+        if(body instanceof Object[]) return ListToJson(Arrays.asList((Object[]) body)).getBytes(StandardCharsets.UTF_8);
+        if(body instanceof Collection) return ListToJson(new ArrayList<>((Collection<?>) body)).getBytes(StandardCharsets.UTF_8);
+         */
+        if (body instanceof Map)
+            return MapToJson((Map<?, ?>) body).getBytes(StandardCharsets.UTF_8);
+
+        if (body instanceof Object[])
+            return ListToJson(Arrays.asList((Object[]) body)).getBytes(StandardCharsets.UTF_8);
+
+        if (body instanceof Collection)
+            return ListToJson(new ArrayList<>((Collection<?>) body)).getBytes(StandardCharsets.UTF_8); // 
+
 
         try {
 
@@ -270,6 +283,31 @@ public class Server {
         } catch (Exception e) {
             throw new RuntimeException("Failed to serialize response body", e);
         }
+    }
+
+    private String ListToJson(List<?> list){
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+
+        for(int i = 0; i < list.size(); i++) {
+            Object item = list.get(i);
+            if (item instanceof String || item instanceof Number || item instanceof Boolean) {
+                sb.append("\"").append(item.toString()).append("\"");
+            } else if (item instanceof Map) {
+                sb.append(MapToJson((Map<?, ?>) item));
+            } else if (item instanceof List) {
+                sb.append(ListToJson((List<?>) item));
+            } else {
+                sb.append(objectToJson(item));
+            }
+
+            if (i < list.size() - 1) {
+                sb.append(",");
+            }
+        }
+
+        sb.append("]");
+        return sb.toString();
     }
 
     private String MapToJson(Map<?,?> map) {
@@ -288,11 +326,31 @@ public class Server {
         if(entry.getValue() instanceof String || entry.getValue() instanceof Number || entry.getValue() instanceof Boolean) {
             sb.append(entry.getValue().toString());
         }
-    }
+        //  if the nested value is a map, we recurse on it:
+        if(entry.getValue() instanceof Map){
+            sb.append(MapToJson((Map<?, ?>) entry.getValue()));
+        }
+        // if the nested value is a list, we recurse on it:
+        if(entry.getValue() instanceof Collection){
+            sb.append(ListToJson(new ArrayList<>((Collection<?>) entry.getValue())));
+        }
+        // if the nested value is an object, we serialize it:
+        else{
+            sb.append(objectToJson(entry.getValue()));
+         }
 
+            sb.append("\"");
+
+            if(count < map.size() - 1) {
+                sb.append(",");
+            }
+            count++;
+        }
         sb.append("}");
         return sb.toString();
     }
+
+    
 
 
     private String objectToJson(Object obj) {
@@ -326,3 +384,4 @@ public class Server {
         return sb.toString();
     }
 }
+
