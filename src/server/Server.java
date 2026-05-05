@@ -259,21 +259,43 @@ public class Server {
         if (body == null) return new byte[0];
         if (body instanceof byte[]) return (byte[]) body;
         if (body instanceof String) return ((String) body).getBytes(StandardCharsets.UTF_8);
+        if (body instanceof Number || body instanceof Boolean) return body.toString().getBytes(StandardCharsets.UTF_8);
+
+        if(body instanceof Map) return MapToJson((Map<?,?>) body).getBytes(StandardCharsets.UTF_8);
+        
 
         try {
 
-            return simpleJson(body).getBytes(StandardCharsets.UTF_8);
+            return objectToJson(body).getBytes(StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new RuntimeException("Failed to serialize response body", e);
         }
     }
 
-    // create a production ready serialzer dispatcher that can handle all java types and build a text on them relying on all kinds of serializers:
-    private String serialzeDispatcher(Object obj){
-        
+    private String MapToJson(Map<?,?> map) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+
+        int count = 0;
+        for (Map.Entry<?,?> entry : map.entrySet()) {
+            sb.append("\"")
+            .append(entry.getKey().toString())
+            .append("\":\"");
+
+            // what if the value is an other map or an object?
+
+        // first handle primitve cases:
+        if(entry.getValue() instanceof String || entry.getValue() instanceof Number || entry.getValue() instanceof Boolean) {
+            sb.append(entry.getValue().toString());
+        }
     }
 
-    private String simpleJson(Object obj) {
+        sb.append("}");
+        return sb.toString();
+    }
+
+
+    private String objectToJson(Object obj) {
 
         StringBuilder sb = new StringBuilder();
         sb.append("{");
