@@ -2,6 +2,7 @@ import server.*;
 import http.*;
 import router.Router;
 import models.User;
+import java.util.*;
 
 public class Main {
     public static void main(String[] args) {
@@ -52,7 +53,11 @@ public class Main {
         Response response = new Response();
         response.setStatus(200);
         response.setHeader("Content-Type", "application/json");
-        response.setBody("Post ID: " + postId + ", User ID: " + userId);
+            Map<String, String> map = Map.of(
+                "postId", postId,
+                "userId", userId
+         );
+        response.setBody(map);
         return response;
     });
 

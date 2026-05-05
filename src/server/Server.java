@@ -7,6 +7,7 @@ import router.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.lang.reflect.Field;
+import exceptions.*;
 
 
 /**
@@ -34,6 +35,9 @@ public class Server {
 
     // All args constructor.
     public Server(int port, Router router) {
+        if(port < 1 || port > 65535) {
+            throw new exceptions.ServerException("Invalid port number: " + port);
+        }
         this.port = port;
         this.router = router;
         this.origin = this.defaultOrigin;
@@ -75,11 +79,11 @@ public class Server {
 
         // Step 6: read the request, parse it, and create a Request object:
         Request request = this.requestParser(client);
-        System.out.println("Received request: "+ request.toString());
+        System.out.println("Received request: " + request.toString());
 
 
-            String responseOrigin = this.origin.equals("*") ? request.getHeader("Origin") : this.origin;
-// Handle CORS preflight request:
+        String responseOrigin = this.origin.equals("*") ? request.getHeader("Origin") : this.origin;
+        // Handle CORS preflight request:
         if(request.getMethod().equalsIgnoreCase("OPTIONS")){
             
             Response res = new Response();
@@ -264,34 +268,39 @@ public class Server {
         }
     }
 
-private String simpleJson(Object obj) {
-
-    StringBuilder sb = new StringBuilder();
-    sb.append("{");
-
-    Field[] fields = obj.getClass().getDeclaredFields();
-
-    for (int i = 0; i < fields.length; i++) {
-        try {
-            fields[i].setAccessible(true);
-            Object value = fields[i].get(obj);
-
-            sb.append("\"")
-              .append(fields[i].getName())
-              .append("\":\"")
-              .append(value)
-              .append("\"");
-
-            if (i < fields.length - 1) {
-                sb.append(",");
-            }
-
-        } catch (Exception e) {
-            // ignore field
-        }
+    // create a production ready serialzer dispatcher that can handle all java types and build a text on them relying on all kinds of serializers:
+    private String serialzeDispatcher(Object obj){
+        
     }
 
-    sb.append("}");
-    return sb.toString();
-}
+    private String simpleJson(Object obj) {
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+
+        Field[] fields = obj.getClass().getDeclaredFields();
+
+        for (int i = 0; i < fields.length; i++) {
+            try {
+                fields[i].setAccessible(true);
+                Object value = fields[i].get(obj);
+
+                sb.append("\"")
+                .append(fields[i].getName())
+                .append("\":\"")
+                .append(value)
+                .append("\"");
+
+                if (i < fields.length - 1) {
+                    sb.append(",");
+                }
+
+            } catch (Exception e) {
+                // ignore field
+            }
+        }
+
+        sb.append("}");
+        return sb.toString();
+    }
 }
