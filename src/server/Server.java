@@ -8,7 +8,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.lang.reflect.Field;
 import exceptions.*;
-
+import java.time.temporal.*;
+// import the instant class for date/time handling:
+import java.time.*;
 
 /**
  * Minimal TCP server in Java (Hello server)
@@ -229,7 +231,7 @@ public class Server {
             OutputStream out = client.getOutputStream();
         
         // 1. Serialize first — this may set headers (e.g. Content-Type)
-        byte[] bodyBytes = serializeResponse(response);
+        byte[] bodyBytes = serializeBody(response.getBody());
 
         // 2. Now Content-Length is also known
         if (bodyBytes.length > 0) {
@@ -253,22 +255,71 @@ public class Server {
         }
     }
 
-    // create a method to serialize the reponse to bytes:
-    private byte[] serializeResponse(Response response) {
-        Object body = response.getBody();
+    /**
+    * create a method to serialize the reponse to bytes:
+    * serialize(Object body):
+    * 1. null
+    * 2. String / Character
+    * 3. Number
+    * 4. Boolean
+    * 5. Enum
+    * 6. Date/Time / UUID / URL / File (string-like objects)
+    * 7. Optional
+    * 8. Map
+    * 9. Array (primitive + object)
+    * 10. Collection
+    * 11. Fallback → custom object (reflection)
+     */
+    private byte[] serializeBody(Object body) {
+
+   
         if (body == null) return new byte[0];
         if (body instanceof byte[]) return (byte[]) body;
-        if (body instanceof String) return ((String) body).getBytes(StandardCharsets.UTF_8);
-        if (body instanceof Number || body instanceof Boolean) return body.toString().getBytes(StandardCharsets.UTF_8);
 
-        /**
-        if(body instanceof List) return ListToJson((List<?>) body).getBytes(StandardCharsets.UTF_8);
-        if(body instanceof Map) return MapToJson((Map<?,?>) body).getBytes(StandardCharsets.UTF_8);
-        if(body instanceof Object[]) return ListToJson(Arrays.asList((Object[]) body)).getBytes(StandardCharsets.UTF_8);
-        if(body instanceof Collection) return ListToJson(new ArrayList<>((Collection<?>) body)).getBytes(StandardCharsets.UTF_8);
-         */
+        // Primitives & String
+        if (body instanceof String)    return ((String) body).getBytes(StandardCharsets.UTF_8);
+        if (body instanceof Character) return body.toString().getBytes(StandardCharsets.UTF_8);
+        if (body instanceof Number || body instanceof Boolean)
+            return body.toString().getBytes(StandardCharsets.UTF_8);
+
+    
+        // Enum
+        if (body instanceof Enum) return body.toString().getBytes(StandardCharsets.UTF_8);
+
+
+        // String-like types
+        if ( body instanceof UUID
+        || body instanceof URL
+        || body instanceof File)
+            return body.toString().getBytes(StandardCharsets.UTF_8);
+
+        
+        // Modern java.time types
+        if (body instanceof Date) {
+        return ("\"" + ((Date) body).toInstant().toString() + "\"").getBytes(StandardCharsets.UTF_8);
+        }
+
+        // Optional — unwrap and recurse
+        if (body instanceof Optional) {
+            Optional<?> opt = (Optional<?>) body;
+            return opt.isPresent()
+                ? serializeBody(opt.get())
+                : "null".getBytes(StandardCharsets.UTF_8);
+        }
+
         if (body instanceof Map)
             return MapToJson((Map<?, ?>) body).getBytes(StandardCharsets.UTF_8);
+
+        // for the primitive array;
+        if(body.getClass().isArray() && body.getClass().getComponentType().isPrimitive()) {
+            return ListToJson(boxPrimitiveArray(body)).getBytes(StandardCharsets.UTF_8);
+        }
+
+        // handle object array:
+        if(body.getClass().isArray()) {
+            return ListToJson(Arrays.asList((Object[]) body)).getBytes(StandardCharsets.UTF_8);
+        }
+
 
         if (body instanceof Object[])
             return ListToJson(Arrays.asList((Object[]) body)).getBytes(StandardCharsets.UTF_8);
@@ -276,13 +327,13 @@ public class Server {
         if (body instanceof Collection)
             return ListToJson(new ArrayList<>((Collection<?>) body)).getBytes(StandardCharsets.UTF_8); // 
 
-
-        try {
-
-            return objectToJson(body).getBytes(StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to serialize response body", e);
-        }
+    // Fallback: treat as arbitrary object
+    try {
+        return objectToJson(body).getBytes(StandardCharsets.UTF_8);
+    } catch (Exception e) {
+        throw new RuntimeException("Failed to serialize response body: "
+            + body.getClass().getName(), e);
+    }
     }
 
     private String ListToJson(List<?> list){
@@ -327,13 +378,15 @@ public class Server {
             sb.append(entry.getValue().toString());
         }
         //  if the nested value is a map, we recurse on it:
-        if(entry.getValue() instanceof Map){
+        else if(entry.getValue() instanceof Map){
             sb.append(MapToJson((Map<?, ?>) entry.getValue()));
         }
         // if the nested value is a list, we recurse on it:
-        if(entry.getValue() instanceof Collection){
+        else if(entry.getValue() instanceof Collection){
             sb.append(ListToJson(new ArrayList<>((Collection<?>) entry.getValue())));
-        }
+        } else if(entry.getValue() != null && entry.getValue().getClass().isArray()){
+            sb.append(ListToJson(boxPrimitiveArray(entry.getValue())));
+        }else if (entry.getValue() instanceof Date){  sb.append(dateToIso8601((Date) entry.getValue()));}
         // if the nested value is an object, we serialize it:
         else{
             sb.append(objectToJson(entry.getValue()));
@@ -349,8 +402,6 @@ public class Server {
         sb.append("}");
         return sb.toString();
     }
-
-    
 
 
     private String objectToJson(Object obj) {
@@ -382,6 +433,23 @@ public class Server {
 
         sb.append("}");
         return sb.toString();
+    }
+
+    // box primitive arrays to lists for easier JSON serialization:
+    private List<Object> boxPrimitiveArray(Object array) {
+        int length = java.lang.reflect.Array.getLength(array);
+        List<Object> list = new ArrayList<>(length);
+
+        for (int i = 0; i < length; i++) {
+            list.add(java.lang.reflect.Array.get(array, i));
+        }
+
+        return list;
+    }
+
+    // serialize a date to ISO 8601 format:
+    private String dateToIso8601(Date date) {
+        return date.toInstant().toString();
     }
 }
 
