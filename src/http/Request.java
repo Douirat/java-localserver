@@ -14,7 +14,7 @@ public class Request {
     private final Map<String, String> headers = new HashMap<>();
     private final Map<String, String> queryParameters = new HashMap<>();
     private final Map<String, String> pathVariables = new HashMap<>(); 
-
+    private  Map<String, String> cookies;
     private byte[] body;
 
     public Request() {
@@ -54,6 +54,10 @@ public class Request {
 
     public void addQueryParam(String key, String value) {
         queryParameters.put(key, value);
+    }
+
+    public void addCookie(String key, String value) {
+        this.cookies.put(key, value);
     }
 
     // --- GETTERS ---
@@ -101,6 +105,17 @@ public class Request {
     public void setBody(byte[] body) {
         this.body = body;
     }
+
+    // return the cookies object, which contains all cookie attributes (name, value, domain, path, expires, secure, httpOnly, sameSite)
+    public Map<String, String> getCookies() {
+        return Collections.unmodifiableMap(cookies);
+    }
+
+    // get a specific cookie value by name
+    public String getCookie(String name) {
+        return cookies.get(name);
+    }
+
 
     public byte[] getBody() {
         return body;
