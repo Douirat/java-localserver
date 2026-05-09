@@ -263,6 +263,34 @@ public class Server {
             out.write(headerLine.getBytes(StandardCharsets.UTF_8));
         }
 
+        if(response.getCookies() != null && !response.getCookies().isEmpty()) {
+            for(Cookie cookie : response.getCookies()) {
+                StringBuilder cookieHeader = new StringBuilder();
+                cookieHeader.append(cookie.getName()).append("=").append(cookie.getValue());
+
+                if (cookie.getDomain() != null) {
+                    cookieHeader.append("; Domain=").append(cookie.getDomain());
+                }
+                if (cookie.getPath() != null) {
+                    cookieHeader.append("; Path=").append(cookie.getPath());
+                }
+                if (cookie.getExpires() != null) {
+                    cookieHeader.append("; Expires=").append(dateToIso8601(cookie.getExpires()));
+                }
+                if (cookie.isSecure()) {
+                    cookieHeader.append("; Secure");
+                }
+                if (cookie.isHttpOnly()) {
+                    cookieHeader.append("; HttpOnly");
+                }
+                if (cookie.getSameSite() != null) {
+                    cookieHeader.append("; SameSite=").append(cookie.getSameSite());
+                }
+
+                out.write(("Set-Cookie: " + cookieHeader.toString() + "\r\n").getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
         // 5. Empty line + body
         out.write("\r\n".getBytes(StandardCharsets.UTF_8));
         if(bodyBytes.length > 0) {

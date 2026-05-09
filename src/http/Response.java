@@ -8,7 +8,7 @@ public class Response {
     private int status;
     private String statusReason; // the status line.
     private final Map<String, String> headers = new HashMap<>();
-    private final List<Cookies> cookies = new ArrayList<>();
+    private final List<Cookie> cookies = new ArrayList<>();
 
     private Object body;
 
@@ -33,8 +33,6 @@ public class Response {
         this.cookies.add(cookie);
     }
 
-
-
     public void setBody(Object body){this.body = body;}
 
     // Getters:
@@ -53,9 +51,6 @@ public class Response {
         return Collections.unmodifiableMap(headers);
     }
 
-    public Map<String, String> getCookies() {
-            return Collections.unmodifiableMap(cookies);
-    }
 
     public Object getBody(){return this.body;}
 
@@ -78,6 +73,15 @@ public class Response {
             .append("\n");
         }
 
+        sb.append("Cookies:\n");
+        for (Cookie cookie : cookies) {
+            sb.append("  ")
+            .append(cookie.getName())
+            .append(": ")
+            .append(cookie.getValue())
+            .append("\n");
+        }
+        
         sb.append("Body:\n");
         if (body != null) {
             sb.append(body.toString());

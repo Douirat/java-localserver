@@ -11,15 +11,17 @@ public class Main {
 
         router.addRoute("GET", "/api/cookies", (Request request) ->{
            Map<String, String> cookies = request.getCookies();
-            System.out.println("Received Cookies:");
-            for (Map.Entry<String, String> entry : cookies.entrySet()) {
-                System.out.println(entry.getKey() + " = " + entry.getValue());
-            }
-
-            Response response = new Response();
+              Response response = new Response();
             response.setStatus(200);
-            response.setHeader("Content-Type", "application/json");
-            response.setBody(Map.of("message", "Cookies received successfully", "cookies", cookies));
+                response.setHeader("Content-Type", "application/json");
+                response.setBody(cookies);
+            //  Test adding a cookie to the response:
+            Cookie cookie = new Cookie("sessionId", "abc123");
+            cookie.setDomain("localhost");
+            cookie.setPath("/api");
+            cookie.setExpires(new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)); // expires in 1 day
+            cookie.setHttpOnly(true);
+            response.addCookie(cookie);
             return response;
         });
  
