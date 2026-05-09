@@ -14,7 +14,9 @@ public class Request {
     private final Map<String, String> headers = new HashMap<>();
     private final Map<String, String> queryParameters = new HashMap<>();
     private final Map<String, String> pathVariables = new HashMap<>(); 
-    private  Map<String, String> cookies;
+    private  final Map<String, String> cookies = new HashMap<>();
+
+    
     private byte[] body;
 
     public Request() {
@@ -154,6 +156,31 @@ public class Request {
                 .append("\n");
             }
         }
+
+        sb.append("\n--- Path Variables ---\n");
+        if (pathVariables.isEmpty()) {
+            sb.append("(none)\n");
+        } else {
+            for (Map.Entry<String, String> entry : pathVariables.entrySet()) {
+                sb.append(entry.getKey())
+                .append("=")
+                .append(entry.getValue())
+                .append("\n");
+            }
+        }
+
+        sb.append("\n--- Cookies ---\n");
+        if (cookies == null || cookies.isEmpty()) {
+            sb.append("(none)\n");
+        } else {
+            for (Map.Entry<String, String> entry : cookies.entrySet()) {
+                sb.append(entry.getKey())
+                .append("=")
+                .append(entry.getValue())
+                .append("\n");
+            }
+        }
+
 
            sb.append("\n--- Body ---\n");
            if(this.body == null){

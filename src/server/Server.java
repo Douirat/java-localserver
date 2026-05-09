@@ -168,7 +168,22 @@ public class Server {
 
                 String key = line.substring(0, idx).trim();
                 String value = line.substring(idx + 1).trim();
+
+                if(key.equalsIgnoreCase("Cookie")){
+             
+                    String[] cookies = value.split(";");
+                    for(String cookie : cookies){
+                        String[] parts = cookie.split("=");
+                        if(parts.length == 2){
+                            String cookieName = parts[0].trim();
+                            String cookieValue = parts[1].trim();
+                            request.addCookie(cookieName, cookieValue);
+                        }
+                    }
+                }else {
                     request.addHeader(key, value);
+                }
+                
             }
 
             String lenHeader = request.getHeader("Content-Length");

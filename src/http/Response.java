@@ -8,7 +8,10 @@ public class Response {
     private int status;
     private String statusReason; // the status line.
     private final Map<String, String> headers = new HashMap<>();
+    private final List<Cookies> cookies = new ArrayList<>();
+
     private Object body;
+
 
     public Response(){}
 
@@ -21,18 +24,20 @@ public class Response {
         this.statusReason = HttpStatusMessages.getMessage(status);
     }
 
-    // public void setStatusReason(int statusReason){
-    //     String message = HttpStatusMessages.getMessage(this.status);
-    //     this.statusReason = message;
-    // }
 
     public void setHeader(String key, String value){
         this.headers.put(key, value);
     }
 
+    public void addCookie(Cookie cookie){
+        this.cookies.add(cookie);
+    }
+
+
+
     public void setBody(Object body){this.body = body;}
 
-// Getters:
+    // Getters:
     public String getVersion(){return this.version;}
 
     public int getStatus(){return this.status;}
@@ -41,11 +46,15 @@ public class Response {
 
     public String getHeader(String key){return this.headers.get(key);}
 
-   
+   public List<Cookie> getCookies(){return Collections.unmodifiableList(cookies);}
    
 
     public Map<String, String> getHeaders() {
         return Collections.unmodifiableMap(headers);
+    }
+
+    public Map<String, String> getCookies() {
+            return Collections.unmodifiableMap(cookies);
     }
 
     public Object getBody(){return this.body;}
