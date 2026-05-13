@@ -36,7 +36,6 @@ public class Main {
             Response response = new Response();
             response.setStatus(200);
             response.setHeader("Content-Type", "application/json");
-
             // IMPORTANT: this should go through your serializer
             response.setBody(user);
 
@@ -125,7 +124,6 @@ public class Main {
         return response;
     });
 
-        Server server = new Server(8080, router);
-        server.listenAndServe();
-    }
+    // add a route to test video streaming:
+
 }
