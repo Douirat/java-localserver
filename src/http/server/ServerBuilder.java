@@ -8,10 +8,11 @@ public class ServerBuilder implements ServingBuilder {
     }
 
     @Override
-    public ServerBuilder port(int port){
+    public ServingBuilder port(int port){
         this.server.setPort(port);
         return this;
     }
+
 
     @Override
     public Server build(){
