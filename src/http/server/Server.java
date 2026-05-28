@@ -3,10 +3,12 @@ package http.server;
 import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.*;
+import java.util.*;
 
 public class Server implements Serving {
   private int port;
+  private List<SocketChannel> clients = new ArrayList<>();
 
   public Server() {
   }
@@ -15,9 +17,11 @@ public class Server implements Serving {
     try (var serverSocketChannel = ServerSocketChannel.open(); var selector = Selector.open()) {
       serverSocketChannel.configureBlocking(false);
       serverSocketChannel.bind(new InetSocketAddress(this.port));
-      serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT); // “Track this server socket inside this selector
-                                                                      // and wake me up whenever a new TCP connection
-                                                                      // arrives.”
+      serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+      /**
+       * “Wake me up when the OS says this listening socket can accept a connection without blocking.”
+       */
+
       System.out.println("Server is listening on port: " + this.port);
       /**
        * 
@@ -45,6 +49,9 @@ public class Server implements Serving {
             if (key.channel() instanceof ServerSocketChannel channel) {
               var client = channel.accept();
               var socket = client.socket();
+              client.configureBlocking(false);
+              client.register(selector, SelectionKey.OP_READ);
+              clients.add(client);
 
               String info = "CLIENT SOCKET INFO\n" +
                   "-------------------\n" +
@@ -55,7 +62,8 @@ public class Server implements Serving {
                   "Connected      : " + socket.isConnected() + "\n" +
                   "Closed         : " + socket.isClosed() + "\n" +
                   "InputShutdown  : " + socket.isInputShutdown() + "\n" +
-                  "OutputShutdown : " + socket.isOutputShutdown();
+                  "OutputShutdown : " + socket.isOutputShutdown() + "\n" +
+                  "class name: " + socket.getClass().getName();
 
               System.out.println(info);
             }
@@ -73,6 +81,14 @@ public class Server implements Serving {
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
+    } finally {
+      for( var client: clients){
+        try{
+          client.close();
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
     }
   }
 
