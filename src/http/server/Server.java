@@ -8,7 +8,6 @@ import java.util.*;
 
 public class Server implements Serving {
   private int port;
-  private List<SocketChannel> clients = new ArrayList<>();
 
   public Server() {
   }
@@ -50,30 +49,31 @@ public class Server implements Serving {
               var client = channel.accept();
               var socket = client.socket();
               client.configureBlocking(false);
+
               client.register(selector, SelectionKey.OP_READ);
-              clients.add(client);
+          
 
               String info = "CLIENT SOCKET INFO\n" +
                   "-------------------\n" +
                   "Remote Address : " + socket.getInetAddress() + "\n" +
-                  "Remote Port    : " + socket.getPort() + "\n" +
-                  "Local Address  : " + socket.getLocalAddress() + "\n" +
-                  "Local Port     : " + socket.getLocalPort() + "\n" +
-                  "Connected      : " + socket.isConnected() + "\n" +
-                  "Closed         : " + socket.isClosed() + "\n" +
-                  "InputShutdown  : " + socket.isInputShutdown() + "\n" +
-                  "OutputShutdown : " + socket.isOutputShutdown() + "\n" +
-                  "class name: " + socket.getClass().getName();
+                  "Remote Port    : " + socket.getPort();
+                  // "Local Address  : " + socket.getLocalAddress() + "\n" +
+                  // "Local Port     : " + socket.getLocalPort() + "\n" +
+                  // "Connected      : " + socket.isConnected() + "\n" +
+                  // "Closed         : " + socket.isClosed() + "\n" +
+                  // "InputShutdown  : " + socket.isInputShutdown() + "\n" +
+                  // "OutputShutdown : " + socket.isOutputShutdown() + "\n" +
+                  // "class name: " + socket.getClass().getName();
 
               System.out.println(info);
             }
           }
-          // if (key.isReadable()) {
-          //   // TODO: handle a connection in an readable state.
-          // }
-          // if (key.isWritable()) {
-          //   // TODO: handle a connection in an writable state
-          // }
+          if (key.isReadable()) {
+            // TODO: handle a connection in an readable state.
+          }
+          if (key.isWritable()) {
+            // TODO: handle a connection in an writable state
+          }
         }
 
         selector.selectedKeys().clear();
