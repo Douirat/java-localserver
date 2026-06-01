@@ -1,4 +1,4 @@
-package http;
+package http.response.cookie;
 
 import java.util.Date;
 
