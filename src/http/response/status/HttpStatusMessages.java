@@ -1,4 +1,4 @@
-package http;
+package http.response.status;
 
 import java.util.Map;
 
