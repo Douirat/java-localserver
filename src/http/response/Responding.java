@@ -1,3 +1,8 @@
+package http.response;
+
+import java.util.*;
+import http.response.cookie.*;
+
 public interface Responding {
     void setVersion(String version);
     void setStatus(int status);

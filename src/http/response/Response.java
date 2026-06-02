@@ -1,6 +1,8 @@
 package http.response;
 
 import java.util.*;
+import http.response.cookie.Cookie;
+import http.response.status.HttpStatusMessages;
 
 
 public class Response implements Responding {

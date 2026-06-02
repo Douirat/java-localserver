@@ -1,3 +1,6 @@
+package http.response;
+import http.response.cookie.*;
+
 public interface RespondingBuilder<T extends RespondingBuilder<T>> {
     T setVersion(String version);
     T setStatus(int status);

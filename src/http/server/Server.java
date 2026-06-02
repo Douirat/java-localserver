@@ -1,10 +1,12 @@
 package http.server;
 
 import java.net.InetSocketAddress;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
+import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.nio.channels.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import http.connecting.Connection;
 
 public class Server implements Serving {
   private int port;
@@ -18,7 +20,8 @@ public class Server implements Serving {
       serverSocketChannel.bind(new InetSocketAddress(this.port));
       serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
       /**
-       * “Wake me up when the OS says this listening socket can accept a connection without blocking.”
+       * “Wake me up when the OS says this listening socket can accept a connection
+       * without blocking.”
        */
 
       System.out.println("Server is listening on port: " + this.port);
@@ -44,36 +47,69 @@ public class Server implements Serving {
         }
 
         for (var key : selector.selectedKeys()) {
+
+          // check if the key is ready to accept a new connection.
           if (key.isAcceptable()) {
-            if (key.channel() instanceof ServerSocketChannel channel) {
-              var client = channel.accept();
-              var socket = client.socket();
-              client.configureBlocking(false);
+            ServerSocketChannel channel = (ServerSocketChannel) key.channel();
 
-              client.register(selector, SelectionKey.OP_READ);
-          
+            SocketChannel client = channel.accept();
+            client.configureBlocking(false);
 
-              String info = "CLIENT SOCKET INFO\n" +
-                  "-------------------\n" +
-                  "Remote Address : " + socket.getInetAddress() + "\n" +
-                  "Remote Port    : " + socket.getPort();
-                  // "Local Address  : " + socket.getLocalAddress() + "\n" +
-                  // "Local Port     : " + socket.getLocalPort() + "\n" +
-                  // "Connected      : " + socket.isConnected() + "\n" +
-                  // "Closed         : " + socket.isClosed() + "\n" +
-                  // "InputShutdown  : " + socket.isInputShutdown() + "\n" +
-                  // "OutputShutdown : " + socket.isOutputShutdown() + "\n" +
-                  // "class name: " + socket.getClass().getName();
+            Connection connection = new Connection(client);
 
-              System.out.println(info);
+            client.register(selector, SelectionKey.OP_READ, connection);
+
+            Socket socket = client.socket();
+
+            System.out.println(
+                "CLIENT SOCKET INFO\n" +
+                    "-------------------\n" +
+                    "Remote Address : " + socket.getInetAddress() + "\n" +
+                    "Remote Port    : " + socket.getPort());
+          }
+
+          // check if the key is ready for reading.
+          if (key.isReadable()) {
+            Connection connection = (Connection) key.attachment();
+            SocketChannel channel = connection.getChannel();
+
+            int bytes = channel.read(connection.getReadBuffer());
+
+            if (bytes == -1) {
+              channel.close();
+              key.cancel();
+              continue;
+            }
+
+            ByteBuffer buffer = connection.getReadBuffer();
+            buffer.flip();
+
+            String data = StandardCharsets.UTF_8.decode(buffer).toString();
+            System.out.println(data);
+
+            buffer.clear();
+
+            // prepare response here
+            connection.prepareResponse("Hello, World!");
+
+            key.interestOps(SelectionKey.OP_WRITE);
+          }
+          // check if the key is ready for writing.
+
+          if (key.isWritable()) {
+            Connection connection = (Connection) key.attachment();
+            SocketChannel channel = connection.getChannel();
+
+            ByteBuffer buffer = connection.getWriteBuffer();
+
+            channel.write(buffer);
+
+            if (!buffer.hasRemaining()) {
+              buffer.clear();
+              key.interestOps(SelectionKey.OP_READ);
             }
           }
-          if (key.isReadable()) {
-            // TODO: handle a connection in an readable state.
-          }
-          if (key.isWritable()) {
-            // TODO: handle a connection in an writable state
-          }
+
         }
 
         selector.selectedKeys().clear();
@@ -81,14 +117,6 @@ public class Server implements Serving {
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
-    } finally {
-      for( var client: clients){
-        try{
-          client.close();
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
     }
   }
 

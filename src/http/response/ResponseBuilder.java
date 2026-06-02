@@ -1,3 +1,7 @@
+package http.response;
+
+import http.response.cookie.Cookie;
+
 public class ResponseBuilder implements RespondingBuilder<ResponseBuilder> {
     private final Response response;
     
