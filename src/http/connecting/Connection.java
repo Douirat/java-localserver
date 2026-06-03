@@ -47,18 +47,29 @@ private State state = State.READING;
             return this.writeBuffer;
      }
 
-@Override
-public void prepareResponse(String body) {
-    writeBuffer.clear();
+     @Override
+     public void ParseRequest(){
+        if(state != State.READING) {
+            return;
+        }
+        readBuffer.flip();
+        String data = StandardCharsets.UTF_8.decode(readBuffer).toString();
+        System.out.println(data);
+        readBuffer.clear();
+     }
 
-    String response =
-        "HTTP/1.1 200 OK\r\n" +
-        "Content-Length: " + body.length() + "\r\n" +
-        "\r\n" +
-        body;
+    @Override
+    public void prepareResponse(String body) {
+        writeBuffer.clear();
 
-    writeBuffer.put(response.getBytes(StandardCharsets.UTF_8));
-    writeBuffer.flip();
-}
+        String response =
+            "HTTP/1.1 200 OK\r\n" +
+            "Content-Length: " + body.length() + "\r\n" +
+            "\r\n" +
+            body;
+
+        writeBuffer.put(response.getBytes(StandardCharsets.UTF_8));
+        writeBuffer.flip();
+    }
 
 }

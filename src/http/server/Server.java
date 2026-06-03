@@ -74,20 +74,13 @@ public class Server implements Serving {
             SocketChannel channel = connection.getChannel();
 
             int bytes = channel.read(connection.getReadBuffer());
+            connection.ParseRequest();
 
             if (bytes == -1) {
               channel.close();
               key.cancel();
               continue;
             }
-
-            ByteBuffer buffer = connection.getReadBuffer();
-            buffer.flip();
-
-            String data = StandardCharsets.UTF_8.decode(buffer).toString();
-            System.out.println(data);
-
-            buffer.clear();
 
             // prepare response here
             connection.prepareResponse("Hello, World!");

@@ -7,5 +7,6 @@ public interface Connecting{
     SocketChannel getChannel();
     ByteBuffer getReadBuffer();
     ByteBuffer getWriteBuffer();
+    void ParseRequest();
     void prepareResponse(String body);
 }
