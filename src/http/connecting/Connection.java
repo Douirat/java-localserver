@@ -34,6 +34,7 @@ public class Connection implements Connecting {
     }
 
     private State state = State.READING;
+    private RequestState requestState = RequestState.REQUEST_LINE;
 
     public Connection(SocketChannel channel) {
         this.channel = channel;
@@ -91,21 +92,28 @@ public class Connection implements Connecting {
     @Override
     public int parseHeaders(String[] lines) {
         // Implementation for parsing headers
-        String[] requestLine = lines[0].split(" ");
-        if(requestLine.length != 3) {
-            throw new RuntimeException("Invalid HTTP request line");
-        }
-        this.request.setRequestLine(requestLine);
-        for(int i=0; i<lines.length; i++){
-            if(lines[i].isEmpty()){
-                continue; // TODO: treat this case properly.
+        if(requestState == RequestState.REQUEST_LINE){
+            String[] requestLine = lines[0].split(" ");
+            if(requestLine.length != 3) {
+                throw new RuntimeException("Invalid HTTP request line");
             }
-            String[] header = lines[i].split(": ", 2);
+            this.request.setRequestLine(requestLine);
+            this.requestState = RequestState.HEADERS;
+        }
+
+        if(requestState == RequestState.HEADERS){
+            for(int i=1; i<lines.length; i++){
+                if(lines[i].isEmpty()){
+                    continue; // TODO: treat this case properly.
+                }
+                String[] header = lines[i].split(": ", 2);
             if(header.length != 2){
                 continue; // TODO: treat this case properly.
             }
             this.request.addHeader(header[0], header[1]);
         }
+        this.requestState = RequestState.BODY;
+    }
         // extract the length of the body if exists:
         String contentLength = this.request.getHeaders().get("Content-Length");
         if(contentLength != null){
@@ -117,6 +125,12 @@ public class Connection implements Connecting {
     @Override
     public void parseBody() {
         // Implementation for parsing body
+        if(this.requestState == RequestState.BODY){
+           byte[] bodyBytes = new byte[readBuffer.remaining()];
+            readBuffer.get(bodyBytes);
+            this.request.setBody(bodyBytes);
+            this.requestState = RequestState.COMPLETE;  
+        }
     }
 
     @Override
