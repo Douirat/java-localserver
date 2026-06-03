@@ -9,6 +9,6 @@ public interface Connecting{
     ByteBuffer getWriteBuffer();
     void ParseRequest();
     int parseHeaders(String[] lines);
-    void parseBody();
+    void parseBody(int bodyStart);
     void prepareResponse(String body); // for debugging purposes, we will prepare a simple response with a body only.
 }

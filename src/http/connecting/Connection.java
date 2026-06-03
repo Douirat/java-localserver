@@ -3,7 +3,6 @@ package http.connecting;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 
-import http.request.Requesting;
 import http.response.Responding;
 import java.nio.ByteBuffer;
 
@@ -64,14 +63,40 @@ public class Connection implements Connecting {
      */
     @Override
     public void ParseRequest() {
-        if (state != State.READING) {
-            return;
-        }
-        readBuffer.flip();
-     
-        // Reading the request line and headers:
-        String requestData = StandardCharsets.UTF_8.decode(readBuffer).toString();
-        String[] lines = requestData.split("\r\n");
+                if (state != State.READING) {
+                    return;
+                }
+                readBuffer.flip();
+
+            int limit = readBuffer.limit();
+            int headerEnd = -1;
+
+            // find \r\n\r\n manually in the buffer
+            for (int i = 0; i < limit - 3; i++) {
+                if (readBuffer.get(i) == '\r'
+                        && readBuffer.get(i + 1) == '\n'
+                        && readBuffer.get(i + 2) == '\r'
+                        && readBuffer.get(i + 3) == '\n') {
+                    headerEnd = i;
+                    break;
+                }
+            }
+
+            if (headerEnd == -1) {
+                readBuffer.compact();
+                return; // not enough data yet
+            }
+
+
+                byte[] headerBytes = new byte[headerEnd];
+                for (int i = 0; i < headerEnd; i++) {
+                    headerBytes[i] = readBuffer.get(i);
+                }
+
+                String headersText = new String(headerBytes, StandardCharsets.UTF_8);
+                String[] lines = headersText.split("\r\n");
+
+
         if (lines.length < 1) {
             throw new RuntimeException("Invalid HTTP request");
         }
@@ -79,14 +104,16 @@ public class Connection implements Connecting {
             request = new Request();
         }
         int contentLength = parseHeaders(lines);
-        System.out.println("Content-Length: " + this.request.toString());
-        if(contentLength > 0){
-            state = State.PROCESSING;
-
-        }else{
-            state = State.WRITING;
+        
+        if(this.request.getHeaders().containsKey("Content-Length")){
+            if(contentLength > 0) this.parseBody(headerEnd + 4);
         }
-        readBuffer.clear();
+
+        if (requestState == RequestState.COMPLETE) {
+            System.out.println("------ ===> request after parsing body <=== ------\n " + this.request.toString());
+            state = State.PROCESSING;
+            readBuffer.clear();
+        }
     }
 
     @Override
@@ -112,25 +139,34 @@ public class Connection implements Connecting {
             }
             this.request.addHeader(header[0], header[1]);
         }
-        this.requestState = RequestState.BODY;
+        
     }
         // extract the length of the body if exists:
         String contentLength = this.request.getHeaders().get("Content-Length");
         if(contentLength != null){
+            this.requestState = RequestState.BODY;
             return Integer.parseInt(contentLength);
         }
         return 0;
     }
 
     @Override
-    public void parseBody() {
-        // Implementation for parsing body
-        if(this.requestState == RequestState.BODY){
-           byte[] bodyBytes = new byte[readBuffer.remaining()];
-            readBuffer.get(bodyBytes);
-            this.request.setBody(bodyBytes);
-            this.requestState = RequestState.COMPLETE;  
+    public void parseBody(int bodyStart) {
+        int contentLength = Integer.parseInt(this.request.getHeaders().getOrDefault("Content-Length", "0"));
+
+        int available = readBuffer.limit() - bodyStart;
+
+        if (available < contentLength) {
+            readBuffer.compact();
+            return; // wait for more data
         }
+
+        byte[] bodyBytes = new byte[contentLength];
+
+        readBuffer.position(bodyStart);
+        readBuffer.get(bodyBytes);
+        this.request.setBody(bodyBytes);
+        this.requestState = RequestState.COMPLETE;
     }
 
     @Override
