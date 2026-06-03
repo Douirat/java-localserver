@@ -25,6 +25,7 @@ enum State {
     CLOSED
 }
 
+
 private State state = State.READING;
 
         public Connection(SocketChannel channel) {
