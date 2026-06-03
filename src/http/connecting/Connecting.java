@@ -8,5 +8,7 @@ public interface Connecting{
     ByteBuffer getReadBuffer();
     ByteBuffer getWriteBuffer();
     void ParseRequest();
+    int parseHeaders(String[] lines);
+    void parseBody();
     void prepareResponse(String body); // for debugging purposes, we will prepare a simple response with a body only.
 }

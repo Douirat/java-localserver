@@ -7,9 +7,12 @@ import java.nio.charset.StandardCharsets;
 
 public class Request implements Requesting {
 
+    
+
     private String method;
     private String path;
     private String version;
+
 
     private final Map<String, String> headers = new HashMap<>();
     private final Map<String, String> queryParameters = new HashMap<>();

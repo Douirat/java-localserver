@@ -61,11 +61,11 @@ public class Server implements Serving {
 
             Socket socket = client.socket();
 
-            System.out.println(
-                "CLIENT SOCKET INFO\n" +
-                    "-------------------\n" +
-                    "Remote Address : " + socket.getInetAddress() + "\n" +
-                    "Remote Port    : " + socket.getPort());
+          //   System.out.println(
+          //       "CLIENT SOCKET INFO\n" +
+          //           "-------------------\n" +
+          //           "Remote Address : " + socket.getInetAddress() + "\n" +
+          //           "Remote Port    : " + socket.getPort());
           }
 
           // check if the key is ready for reading.
