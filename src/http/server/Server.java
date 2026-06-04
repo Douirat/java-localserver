@@ -25,20 +25,20 @@ public class Server implements Serving {
        */
 
       System.out.println("Server is listening on port: " + this.port);
-      /**
-       * 
-       * selector tracks serverSocketChannel
-       * ↓
-       * OS monitors listening socket
-       * ↓
-       * new client arrives
-       * ↓
-       * OS marks socket ACCEPT-ready
-       * ↓
-       * selector.select() wakes up
-       * ↓
-       * key.isAcceptable() becomes true
-       */
+            /**
+             * 
+             * selector tracks serverSocketChannel
+             * ↓
+             * OS monitors listening socket
+             * ↓
+             * new client arrives
+             * ↓
+             * OS marks socket ACCEPT-ready
+             * ↓
+             * selector.select() wakes up
+             * ↓
+             * key.isAcceptable() becomes true
+             */
       while (true) {
 
         // don't bock when no keys are available.
@@ -48,60 +48,57 @@ public class Server implements Serving {
 
         for (var key : selector.selectedKeys()) {
 
-          // check if the key is ready to accept a new connection.
-          if (key.isAcceptable()) {
-            ServerSocketChannel channel = (ServerSocketChannel) key.channel();
+                // check if the key is ready to accept a new connection.
+                if (key.isAcceptable()) {
+                  ServerSocketChannel channel = (ServerSocketChannel) key.channel();
 
-            SocketChannel client = channel.accept();
-            client.configureBlocking(false);
+                  SocketChannel client = channel.accept();
+                  client.configureBlocking(false);
 
-            Connection connection = new Connection(client);
+                  Connection connection = new Connection(client);
 
-            client.register(selector, SelectionKey.OP_READ, connection);
+                  client.register(selector, SelectionKey.OP_READ, connection);
+                }
 
-            Socket socket = client.socket();
 
-          //   System.out.println(
-          //       "CLIENT SOCKET INFO\n" +
-          //           "-------------------\n" +
-          //           "Remote Address : " + socket.getInetAddress() + "\n" +
-          //           "Remote Port    : " + socket.getPort());
-          }
 
-          // check if the key is ready for reading.
-          if (key.isReadable()) {
-            Connection connection = (Connection) key.attachment();
-            SocketChannel channel = connection.getChannel();
+                // check if the key is ready for reading.
+                if (key.isReadable()) {
+                  Connection connection = (Connection) key.attachment();
+                  SocketChannel channel = connection.getChannel();
 
-            int bytes = channel.read(connection.getReadBuffer());
-            connection.ParseRequest();
+                  int bytes = channel.read(connection.getReadBuffer());
+                  connection.ParseRequest();
 
-            if (bytes == -1) {
-              channel.close();
-              key.cancel();
-              continue;
-            }
+                  if (bytes == -1) {
+                    channel.close();
+                    key.cancel();
+                    continue;
+                  }
 
-            // prepare response here
-            connection.prepareResponse("Hello, World!");
+                  // prepare response here
+                  connection.prepareResponse("Hello, World!");
 
-            key.interestOps(SelectionKey.OP_WRITE);
-          }
-          // check if the key is ready for writing.
+                  key.interestOps(SelectionKey.OP_WRITE);
+                }
 
-          if (key.isWritable()) {
-            Connection connection = (Connection) key.attachment();
-            SocketChannel channel = connection.getChannel();
 
-            ByteBuffer buffer = connection.getWriteBuffer();
 
-            channel.write(buffer);
+              // check if the key is ready for writing.
 
-            if (!buffer.hasRemaining()) {
-              buffer.clear();
-              key.interestOps(SelectionKey.OP_READ);
-            }
-          }
+                  if (key.isWritable()) {
+                    Connection connection = (Connection) key.attachment();
+                    SocketChannel channel = connection.getChannel();
+
+                    ByteBuffer buffer = connection.getWriteBuffer();
+
+                    channel.write(buffer);
+
+                    if (!buffer.hasRemaining()) {
+                      buffer.clear();
+                      key.interestOps(SelectionKey.OP_READ);
+                    }
+                  }
 
         }
 

@@ -63,24 +63,25 @@ public class Connection implements Connecting {
      */
     @Override
     public void ParseRequest() {
+        
                 if (state != State.READING) {
                     return;
                 }
                 readBuffer.flip();
 
-            int limit = readBuffer.limit();
-            int headerEnd = -1;
+                    int limit = readBuffer.limit();
+                    int headerEnd = -1;
 
-            // find \r\n\r\n manually in the buffer
-            for (int i = 0; i < limit - 3; i++) {
-                if (readBuffer.get(i) == '\r'
-                        && readBuffer.get(i + 1) == '\n'
-                        && readBuffer.get(i + 2) == '\r'
-                        && readBuffer.get(i + 3) == '\n') {
-                    headerEnd = i;
-                    break;
-                }
-            }
+                    // find \r\n\r\n manually in the buffer
+                    for (int i = 0; i < limit - 3; i++) {
+                        if (readBuffer.get(i) == '\r'
+                                && readBuffer.get(i + 1) == '\n'
+                                && readBuffer.get(i + 2) == '\r'
+                                && readBuffer.get(i + 3) == '\n') {
+                            headerEnd = i;
+                            break;
+                        }
+                    }
 
             if (headerEnd == -1) {
                 readBuffer.compact();
@@ -97,17 +98,23 @@ public class Connection implements Connecting {
                 String[] lines = headersText.split("\r\n");
 
 
-        if (lines.length < 1) {
-            throw new RuntimeException("Invalid HTTP request");
-        }
-        if (request == null) {
-            request = new Request();
-        }
-        int contentLength = parseHeaders(lines);
-        
-        if(this.request.getHeaders().containsKey("Content-Length")){
-            if(contentLength > 0) this.parseBody(headerEnd + 4);
-        }
+                if (lines.length < 1) {
+                    throw new RuntimeException("Invalid HTTP request");
+                }
+
+                    // instantiate the request.
+                    if (request == null) {
+                        request = new Request();
+                    }
+
+                    
+                // parse headers and determine if we have a body to read:
+                int contentLength = parseHeaders(lines);   
+                if(contentLength > 0){
+                    this.parseBody(headerEnd + 4);
+                } else {
+                    this.requestState = RequestState.COMPLETE;
+                }
 
         if (requestState == RequestState.COMPLETE) {
             System.out.println("------ ===> request after parsing body <=== ------\n " + this.request.toString());
@@ -128,26 +135,28 @@ public class Connection implements Connecting {
             this.requestState = RequestState.HEADERS;
         }
 
-        if(requestState == RequestState.HEADERS){
-            for(int i=1; i<lines.length; i++){
-                if(lines[i].isEmpty()){
-                    continue; // TODO: treat this case properly.
+        // parse headers:
+            if(requestState == RequestState.HEADERS){
+                    for(int i=1; i<lines.length; i++){
+                        if(lines[i].isEmpty()){
+                            break; // end of headers
+                        }
+                    String[] header = lines[i].split(": ", 2);
+                    if(header.length != 2){
+                        throw new RuntimeException("Invalid HTTP header: ");
+                    }
+                    this.request.addHeader(header[0], header[1]);
                 }
-                String[] header = lines[i].split(": ", 2);
-            if(header.length != 2){
-                continue; // TODO: treat this case properly.
             }
-            this.request.addHeader(header[0], header[1]);
-        }
-        
-    }
-        // extract the length of the body if exists:
-        String contentLength = this.request.getHeaders().get("Content-Length");
-        if(contentLength != null){
-            this.requestState = RequestState.BODY;
-            return Integer.parseInt(contentLength);
-        }
-        return 0;
+
+
+                // extract the length of the body if exists:
+                String contentLength = this.request.getHeaders().get("Content-Length");
+                if(contentLength != null){
+                    this.requestState = RequestState.BODY;
+                    return Integer.parseInt(contentLength);
+                }
+                return 0;
     }
 
     @Override
