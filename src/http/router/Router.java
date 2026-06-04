@@ -8,7 +8,7 @@ import http.handler.Handler;
 import java.util.regex.*;
 
 
-public class Router{
+public class Router implements Routing{
     
     // method => path => Response handle(Request req);
     Map<String, Map<String, Handler>> routes;
@@ -34,6 +34,7 @@ public class Router{
     }
 
 // The API to expose to application to add routes: method => path ==> handler()!
+    @Override
     public void addRoute(String method, String path, Handler handler){
         
     if(method == null || !isValidMethod(method) || path == null || handler == null) {
@@ -72,6 +73,7 @@ public class Router{
     }
 
 // The API to expose to the server in order to pass in requests:
+ @Override
 public Response serve(Request request){
     Handler handler = this.matchRoute(request);
     
@@ -89,18 +91,21 @@ public Response serve(Request request){
 }
 
 // check a valid method:
+ @Override
 public boolean isValidMethod(String method){
     return routes.containsKey(method.toUpperCase());
 }
 
 // use Regex expression to check valid path:
+ @Override
 public boolean isValidPath(String method, String path){
     // Simple regex for path validation (can be expanded based on requirements)
     return path.matches("/[a-zA-Z0-9/_-]*");
 }
 
 // create a route matching function that also extracts path variables for dynamic routes:
-private Handler matchRoute(Request request) {
+ @Override
+public Handler matchRoute(Request request) {
     // first check static routes:
     Map<String, Handler> routesMap = this.routes.get(request.getMethod().toUpperCase());
 

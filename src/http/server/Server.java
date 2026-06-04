@@ -4,11 +4,17 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import http.connecting.Connection;
+import http.router.*;
+
 
 public class Server implements Serving {
+  
   private int port;
+  private Routing router;
 
   public Server() {
+    this.port = 8080;
+    this.router = new Router(); // we will set the router later when we implement it.
   }
 
   public void start() {
@@ -127,4 +133,9 @@ public class Server implements Serving {
     return this.port;
   }
 
+  @Override
+  public Router getRouter(){
+    return (Router) this.router;
+  }
+ 
 }
