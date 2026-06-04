@@ -7,6 +7,7 @@ import http.response.Responding;
 import java.nio.ByteBuffer;
 
 import http.request.*;
+import http.connecting.state.*;
 
 public class Connection implements Connecting {
     private SocketChannel channel;
@@ -17,22 +18,10 @@ public class Connection implements Connecting {
     private final ByteBuffer readBuffer = ByteBuffer.allocate(8192);
     final ByteBuffer writeBuffer = ByteBuffer.allocate(8192);
 
-    // state
-    enum State {
-        READING,
-        PROCESSING,
-        WRITING,
-        CLOSED
-    }
 
-    enum RequestState {
-        REQUEST_LINE,
-        HEADERS,
-        BODY,
-        COMPLETE
-    }
 
-    private State state = State.READING;
+
+    private ConnectionState state = ConnectionState.READING;
     private RequestState requestState = RequestState.REQUEST_LINE;
 
     public Connection(SocketChannel channel) {
@@ -57,14 +46,23 @@ public class Connection implements Connecting {
         return this.writeBuffer;
     }
 
+    @Override
+    public ConnectionState getConnectionState() {
+        return this.state;
+    }
+
+    @Override
+    public void setConnectionState(ConnectionState state) {
+        this.state = state;
+    }
 
     /*
      * Parses the HTTP request from the read buffer and prepares the response.
      */
     @Override
     public void ParseRequest() {
-        
-                if (state != State.READING) {
+
+                if (state != ConnectionState.READING) {
                     return;
                 }
                 readBuffer.flip();
@@ -118,7 +116,7 @@ public class Connection implements Connecting {
 
         if (requestState == RequestState.COMPLETE) {
             System.out.println("------ ===> request after parsing body <=== ------\n " + this.request.toString());
-            state = State.PROCESSING;
+            state = ConnectionState.PROCESSING;
             readBuffer.clear();
         }
     }

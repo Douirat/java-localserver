@@ -1,11 +1,8 @@
 package http.server;
 
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
 import http.connecting.Connection;
 
 public class Server implements Serving {
@@ -76,8 +73,8 @@ public class Server implements Serving {
                     continue;
                   }
 
-                  // prepare response here
-                  connection.prepareResponse("Hello, World!");
+                  // if the connection is ready to write and done processing the request, we prepare the response and switch to write mode:
+                  
 
                   key.interestOps(SelectionKey.OP_WRITE);
                 }

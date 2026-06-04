@@ -3,11 +3,13 @@ package http.router;
 import java.util.*;
 import http.request.Request;
 import http.response.Response;
+import http.response.ResponseBuilder;
 import http.handler.Handler;
 import java.util.regex.*;
 
 
 public class Router{
+    
     // method => path => Response handle(Request req);
     Map<String, Map<String, Handler>> routes;
     Map<String, Map<String, Handler>> dynamicRoutes; // for routes with path variables, e.g., /api/users/{id}>>
@@ -45,12 +47,15 @@ public class Router{
         if (dynamicRoutesMap == null) {
             throw new RuntimeException("Unsupported HTTP method: " + method);
         }
+
         if(dynamicRoutesMap.containsKey(path)) {
             throw new RuntimeException("Route already exists: " + path);
         }
+
         dynamicRoutesMap.put(path, handler);
 
     } else {
+
     Map<String, Handler> routesMap = this.routes.get(method.toUpperCase());
     
     if ( routesMap == null) {
@@ -72,10 +77,11 @@ public Response serve(Request request){
     
     // if no handler found, return 404 response:
     if(handler == null) {
-        Response response = new Response();
-        response.setStatus(404);
-        response.setHeader("Content-Type", "text/plain");
-        response.setBody("Not Found");
+        Response response = new ResponseBuilder()
+                                .setStatus(04)
+                                .setHeader("Content-Type", "text/plain")
+                                .setBody("Not Found")
+                                .build();
         return response;
     }
     

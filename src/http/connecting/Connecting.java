@@ -3,10 +3,14 @@ package http.connecting;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
+import http.connecting.state.ConnectionState;
+
 public interface Connecting{
     SocketChannel getChannel();
     ByteBuffer getReadBuffer();
     ByteBuffer getWriteBuffer();
+    ConnectionState getConnectionState();
+    void setConnectionState(ConnectionState state);
     void ParseRequest();
     int parseHeaders(String[] lines);
     void parseBody(int bodyStart);
