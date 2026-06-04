@@ -81,7 +81,6 @@ public class Server implements Serving {
 
                   // if the connection is ready to write and done processing the request, we prepare the response and switch to write mode:
                   
-
                   key.interestOps(SelectionKey.OP_WRITE);
                 }
 

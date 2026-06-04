@@ -52,6 +52,11 @@ public class Connection implements Connecting {
     }
 
     @Override
+    public RequestState getRequestState(){
+        return this.requestState;
+    }
+
+    @Override
     public void setConnectionState(ConnectionState state) {
         this.state = state;
     }

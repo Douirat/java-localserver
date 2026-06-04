@@ -4,12 +4,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
 import http.connecting.state.ConnectionState;
+import http.connecting.state.RequestState;
 
 public interface Connecting{
     SocketChannel getChannel();
     ByteBuffer getReadBuffer();
     ByteBuffer getWriteBuffer();
     ConnectionState getConnectionState();
+    RequestState getRequestState();
     void setConnectionState(ConnectionState state);
     void ParseRequest();
     int parseHeaders(String[] lines);
