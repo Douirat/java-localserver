@@ -10,9 +10,8 @@ import http.router.*;
 import http.request.*;
 import http.response.*;
 
-
 public class Server implements Serving {
-  
+
   private int port;
   private Routing router;
 
@@ -32,20 +31,20 @@ public class Server implements Serving {
        */
 
       System.out.println("Server is listening on port: " + this.port);
-            /**
-             * 
-             * selector tracks serverSocketChannel
-             * ↓
-             * OS monitors listening socket
-             * ↓
-             * new client arrives
-             * ↓
-             * OS marks socket ACCEPT-ready
-             * ↓
-             * selector.select() wakes up
-             * ↓
-             * key.isAcceptable() becomes true
-             */
+      /**
+       * 
+       * selector tracks serverSocketChannel
+       * ↓
+       * OS monitors listening socket
+       * ↓
+       * new client arrives
+       * ↓
+       * OS marks socket ACCEPT-ready
+       * ↓
+       * selector.select() wakes up
+       * ↓
+       * key.isAcceptable() becomes true
+       */
       while (true) {
 
         // don't bock when no keys are available.
@@ -53,72 +52,60 @@ public class Server implements Serving {
           continue;
         }
 
-        for (var key : selector.selectedKeys()) {
+   for (var key : selector.selectedKeys()) {
 
-                // check if the key is ready to accept a new connection.
-                if (key.isAcceptable()) {
-                  ServerSocketChannel channel = (ServerSocketChannel) key.channel();
+    if (key.isAcceptable()) {
+        ServerSocketChannel channel = (ServerSocketChannel) key.channel();
+        SocketChannel client = channel.accept();
+        client.configureBlocking(false);
+        Connection connection = new Connection(client);
+        client.register(selector, SelectionKey.OP_READ, connection);
+        continue; // ← done with this key
+    }
 
-                  SocketChannel client = channel.accept();
-                  client.configureBlocking(false);
+    if (key.isReadable()) {
+        Connection connection = (Connection) key.attachment();
+        SocketChannel channel = connection.getChannel();
 
-                  Connection connection = new Connection(client);
+        int bytes = channel.read(connection.getReadBuffer());
 
-                  client.register(selector, SelectionKey.OP_READ, connection);
-                }
-
-
-
-                // check if the key is ready for reading.
-                if (key.isReadable()) {
-                  Connection connection = (Connection) key.attachment();
-                  SocketChannel channel = connection.getChannel();
-
-                  int bytes = channel.read(connection.getReadBuffer());
-                  connection.ParseRequest();
-
-                  if (bytes == -1) {
-                    channel.close();
-                    key.cancel();
-                    continue;
-                  }
-
-                  // if the connection is ready to write and done processing the request, we prepare the response and switch to write mode:
-                  if(connection.getRequestState() == RequestState.COMPLETE) {
-                    System.out.println(connection.getRequest().toString());
-                    Response response = this.router.serve(connection.getRequest());
-                    if(response != null){
-                      connection.setResponse(response);
-                      connection.prepareResponse();
-                      connection.setConnectionState(ConnectionState.WRITING);
-                    }
-
-                  }
-                  key.interestOps(SelectionKey.OP_WRITE);
-                }
-
-
-
-              // check if the key is ready for writing.
-
-                  if (key.isWritable()) {
-                    Connection connection = (Connection) key.attachment();
-                    SocketChannel channel = connection.getChannel();
-                    if(connection.getConnectionState() == ConnectionState.WRITING) {
-
-                      ByteBuffer buffer = connection.getWriteBuffer();
-  
-                      channel.write(buffer);
-  
-                      if (!buffer.hasRemaining()) {
-                        connection.setConnectionState(ConnectionState.CLOSED);
-                        buffer.clear();
-                        key.interestOps(SelectionKey.OP_READ);
-                      }
-                    }
-                  }
-
+        if (bytes == -1) {
+            channel.close();
+            key.cancel();
+            continue;
         }
+
+        connection.ParseRequest();
+
+        if (connection.getRequestState() == RequestState.COMPLETE) {
+            Response response = this.router.serve(connection.getRequest());
+            if (response != null) {
+                connection.setResponse(response);
+                connection.prepareResponse();
+                connection.setConnectionState(ConnectionState.WRITING);
+                key.interestOps(SelectionKey.OP_WRITE);
+            }
+        }
+        continue; // ← don't fall through to isWritable() this iteration
+    }
+
+    if (key.isWritable()) {
+        Connection connection = (Connection) key.attachment();
+        SocketChannel channel = connection.getChannel();
+
+        if (connection.getConnectionState() == ConnectionState.WRITING) {
+            ByteBuffer buffer = connection.getWriteBuffer();
+            channel.write(buffer);
+
+            if (!buffer.hasRemaining()) {
+                connection.setConnectionState(ConnectionState.CLOSED);
+                buffer.clear();
+                key.interestOps(SelectionKey.OP_READ);
+            }
+        }
+    }
+}
+
 
         selector.selectedKeys().clear();
 
@@ -149,8 +136,8 @@ public class Server implements Serving {
   }
 
   @Override
-  public Router getRouter(){
+  public Router getRouter() {
     return (Router) this.router;
   }
- 
+
 }
