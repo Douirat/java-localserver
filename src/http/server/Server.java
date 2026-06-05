@@ -4,7 +4,11 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import http.connecting.Connection;
+import http.connecting.state.ConnectionState;
+import http.connecting.state.RequestState;
 import http.router.*;
+import http.request.*;
+import http.response.*;
 
 
 public class Server implements Serving {
@@ -80,7 +84,15 @@ public class Server implements Serving {
                   }
 
                   // if the connection is ready to write and done processing the request, we prepare the response and switch to write mode:
-                  
+                  if(connection.getRequestState() == RequestState.COMPLETE) {
+                    Response response = this.router.serve(connection.getRequest());
+                    if(response != null){
+                      connection.setResponse(response);
+                      connection.prepareResponse(null);
+                      // connection.setConnectionState(ConnectionState.WRITING);
+                    }
+
+                  }
                   key.interestOps(SelectionKey.OP_WRITE);
                 }
 

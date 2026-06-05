@@ -4,6 +4,8 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 
 import http.response.Responding;
+import http.response.Response;
+
 import java.nio.ByteBuffer;
 
 import http.request.*;
@@ -34,6 +36,15 @@ public class Connection implements Connecting {
         return this.channel;
     }
 
+    @Override
+    public Request getRequest(){
+        return (Request) this.request;
+    }
+
+    @Override
+    public Response getResponse(){
+        return (Response) this.response;
+    }
 
     @Override
     public ByteBuffer getReadBuffer() {
@@ -59,6 +70,11 @@ public class Connection implements Connecting {
     @Override
     public void setConnectionState(ConnectionState state) {
         this.state = state;
+    }
+
+    @Override
+    public void setResponse(Response response){
+        this.response = response;
     }
 
     /*
@@ -120,7 +136,7 @@ public class Connection implements Connecting {
                 }
 
         if (requestState == RequestState.COMPLETE) {
-            System.out.println("------ ===> request after parsing body <=== ------\n " + this.request.toString());
+            // System.out.println("------ ===> request after parsing body <=== ------\n " + this.request.toString());
             state = ConnectionState.PROCESSING;
             readBuffer.clear();
         }
@@ -183,14 +199,11 @@ public class Connection implements Connecting {
 
     @Override
     public void prepareResponse(String body) {
-        writeBuffer.clear();
+        
+        
+   
 
-        String response = "HTTP/1.1 200 OK\r\n" +
-                "Content-Length: " + body.length() + "\r\n" +
-                "\r\n" +
-                body;
-
-        writeBuffer.put(response.getBytes(StandardCharsets.UTF_8));
+        
         writeBuffer.flip();
     }
 
