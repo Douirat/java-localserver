@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 
 import http.request.*;
 import http.connecting.state.*;
+import http.json.Serializer;
 
 public class Connection implements Connecting {
     private SocketChannel channel;
@@ -198,13 +199,14 @@ public class Connection implements Connecting {
     }
 
     @Override
-    public void prepareResponse(String body) {
-        
-        
-   
+    public void prepareResponse() {
+        try {
+            String res = Serializer.toJson(response);
+            this.writeBuffer.put(res.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+          throw new RuntimeException("Error serializig ");
+        }
 
-        
-        writeBuffer.flip();
     }
 
 }

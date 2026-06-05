@@ -85,11 +85,12 @@ public class Server implements Serving {
 
                   // if the connection is ready to write and done processing the request, we prepare the response and switch to write mode:
                   if(connection.getRequestState() == RequestState.COMPLETE) {
+                    System.out.println(connection.getRequest().toString());
                     Response response = this.router.serve(connection.getRequest());
                     if(response != null){
                       connection.setResponse(response);
-                      connection.prepareResponse(null);
-                      // connection.setConnectionState(ConnectionState.WRITING);
+                      connection.prepareResponse();
+                      connection.setConnectionState(ConnectionState.WRITING);
                     }
 
                   }
@@ -103,14 +104,17 @@ public class Server implements Serving {
                   if (key.isWritable()) {
                     Connection connection = (Connection) key.attachment();
                     SocketChannel channel = connection.getChannel();
+                    if(connection.getConnectionState() == ConnectionState.WRITING) {
 
-                    ByteBuffer buffer = connection.getWriteBuffer();
-
-                    channel.write(buffer);
-
-                    if (!buffer.hasRemaining()) {
-                      buffer.clear();
-                      key.interestOps(SelectionKey.OP_READ);
+                      ByteBuffer buffer = connection.getWriteBuffer();
+  
+                      channel.write(buffer);
+  
+                      if (!buffer.hasRemaining()) {
+                        connection.setConnectionState(ConnectionState.CLOSED);
+                        buffer.clear();
+                        key.interestOps(SelectionKey.OP_READ);
+                      }
                     }
                   }
 

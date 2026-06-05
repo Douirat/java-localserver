@@ -21,5 +21,5 @@ public interface Connecting{
     void ParseRequest();
     int parseHeaders(String[] lines);
     void parseBody(int bodyStart);
-    void prepareResponse(String body); // for debugging purposes, we will prepare a simple response with a body only.
+    void prepareResponse();
 }
