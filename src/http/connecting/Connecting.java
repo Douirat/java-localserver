@@ -19,7 +19,7 @@ public interface Connecting {
 
     Request getRequest();
 
-    boolean isFile();
+    boolean isFileResponse();
 
     void setResponse(Response response);
 
@@ -29,7 +29,7 @@ public interface Connecting {
 
     void setConnectionState(ConnectionState state);
 
-    void setIsFile(boolean value);
+    void setFileResponse(boolean value);
 
     void ParseRequest();
 

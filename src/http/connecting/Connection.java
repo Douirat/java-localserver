@@ -74,7 +74,7 @@ public class Connection implements Connecting {
     }
 
     @Override
-    public boolean isFile() {
+    public boolean isFileResponse() {
         return isFile;
     }
 
@@ -89,7 +89,7 @@ public class Connection implements Connecting {
     }
 
     @Override
-    public void setIsFile(boolean value) {
+    public void setFileResponse(boolean value) {
         this.isFile = value;
     }
 

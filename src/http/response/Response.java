@@ -2,6 +2,8 @@ package http.response;
 
 import java.util.*;
 import http.response.cookie.Cookie;
+import http.response.responseBody.Body;
+import http.response.responseBody.MemoryBody;
 import http.response.status.HttpStatusMessages;
 
 
@@ -12,7 +14,7 @@ public class Response implements Responding {
     private final Map<String, String> headers = new HashMap<>();
     private final List<Cookie> cookies = new ArrayList<>();
 
-    private Object body;
+    private Body body;
 
 
     public Response(){}
@@ -35,7 +37,11 @@ public class Response implements Responding {
         this.cookies.add(cookie);
     }
 
-    public void setBody(Object body){this.body = body;}
+    public void setBody(Object data){
+        MemoryBody body = new MemoryBody();
+        body.setData(data);
+        this.body = body;
+    }
 
     // Getters:
     public String getVersion(){return this.version;}
@@ -54,7 +60,10 @@ public class Response implements Responding {
     }
 
 
-    public Object getBody(){return this.body;}
+    public Object getBody(){
+        MemoryBody object =(MemoryBody) this.body;
+        return object.getData();
+    }
 
     // toString method for debugging:
     @Override
