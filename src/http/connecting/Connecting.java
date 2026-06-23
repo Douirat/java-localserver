@@ -8,18 +8,34 @@ import http.connecting.state.RequestState;
 import http.request.*;
 import http.response.*;
 
-public interface Connecting{
+public interface Connecting {
     SocketChannel getChannel();
+
     ByteBuffer getReadBuffer();
+
     ByteBuffer getWriteBuffer();
+
     Response getResponse();
+
     Request getRequest();
+
+    boolean isFile();
+
     void setResponse(Response response);
+
     ConnectionState getConnectionState();
+
     RequestState getRequestState();
+
     void setConnectionState(ConnectionState state);
+
+    void setIsFile(boolean value);
+
     void ParseRequest();
+
     int parseHeaders(String[] lines);
+
     void parseBody(int bodyStart);
+
     void prepareResponse();
 }

@@ -7,7 +7,6 @@ import http.connecting.Connection;
 import http.connecting.state.ConnectionState;
 import http.connecting.state.RequestState;
 import http.router.*;
-import http.request.*;
 import http.response.*;
 
 public class Server implements Serving {
@@ -22,29 +21,46 @@ public class Server implements Serving {
 
   public void start() {
     try (var serverSocketChannel = ServerSocketChannel.open(); var selector = Selector.open()) {
+      /**
+       * @ var selector = Selector.open()
+       * Java:
+       * 1. Asks the OS for a selector mechanism
+       * Linux → epoll
+       * macOS/BSD → kqueue
+       * Windows → select / IOCP wrapper
+       * 2. Allocates a native structure that can:
+       * track file descriptors (sockets)
+       * store “interest sets” (READ / WRITE / ACCEPT)
+       * return “ready sets”
+       */
+
       serverSocketChannel.configureBlocking(false);
       serverSocketChannel.bind(new InetSocketAddress(this.port));
+      /**
+       * This is where the OS socket is created and attached to a port.
+       * 
+       * Internally:
+       * 
+       * A TCP socket is created
+       * It is bound to:
+       * IP: 0.0.0.0 (usually all interfaces)
+       * Port: 8080 (your value)
+       * What this means physically
+       * 
+       * The OS now knows:
+       * 
+       * “Any incoming TCP connection targeting port 8080 should go to this socket.”
+       * 
+       */
       serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+
       /**
        * “Wake me up when the OS says this listening socket can accept a connection
        * without blocking.”
        */
 
       System.out.println("Server is listening on port: " + this.port);
-      /**
-       * 
-       * selector tracks serverSocketChannel
-       * ↓
-       * OS monitors listening socket
-       * ↓
-       * new client arrives
-       * ↓
-       * OS marks socket ACCEPT-ready
-       * ↓
-       * selector.select() wakes up
-       * ↓
-       * key.isAcceptable() becomes true
-       */
+
       while (true) {
 
         // don't bock when no keys are available.
@@ -52,60 +68,59 @@ public class Server implements Serving {
           continue;
         }
 
-   for (var key : selector.selectedKeys()) {
+        for (var key : selector.selectedKeys()) {
 
-    if (key.isAcceptable()) {
-        ServerSocketChannel channel = (ServerSocketChannel) key.channel();
-        SocketChannel client = channel.accept();
-        client.configureBlocking(false);
-        Connection connection = new Connection(client);
-        client.register(selector, SelectionKey.OP_READ, connection);
-        continue; // ← done with this key
-    }
+          if (key.isAcceptable()) {
+            ServerSocketChannel channel = (ServerSocketChannel) key.channel();
+            SocketChannel client = channel.accept();
+            client.configureBlocking(false);
+            Connection connection = new Connection(client);
+            client.register(selector, SelectionKey.OP_READ, connection);
+            continue; // ← done with this key
+          }
 
-    if (key.isReadable()) {
-        Connection connection = (Connection) key.attachment();
-        SocketChannel channel = connection.getChannel();
+          if (key.isReadable()) {
+            Connection connection = (Connection) key.attachment();
+            SocketChannel channel = connection.getChannel();
 
-        int bytes = channel.read(connection.getReadBuffer());
+            int bytes = channel.read(connection.getReadBuffer());
 
-        if (bytes == -1) {
-            channel.close();
-            key.cancel();
-            continue;
-        }
+            if (bytes == -1) {
+              channel.close();
+              key.cancel();
+              continue;
+            }
 
-        connection.ParseRequest();
+            connection.ParseRequest();
 
-        if (connection.getRequestState() == RequestState.COMPLETE) {
-            Response response = this.router.serve(connection.getRequest());
-            if (response != null) {
+            if (connection.getRequestState() == RequestState.COMPLETE) {
+              Response response = this.router.serve(connection.getRequest());
+              if (response != null) {
                 connection.setResponse(response);
                 connection.prepareResponse();
                 connection.setConnectionState(ConnectionState.WRITING);
                 key.interestOps(SelectionKey.OP_WRITE);
+              }
             }
-        }
-        continue; // ← don't fall through to isWritable() this iteration
-    }
+            continue; // ← don't fall through to isWritable() this iteration
+          }
 
-    if (key.isWritable()) {
-        Connection connection = (Connection) key.attachment();
-        SocketChannel channel = connection.getChannel();
+          if (key.isWritable()) {
+            Connection connection = (Connection) key.attachment();
+            SocketChannel channel = connection.getChannel();
 
-        if (connection.getConnectionState() == ConnectionState.WRITING) {
-            ByteBuffer buffer = connection.getWriteBuffer();
-            channel.write(buffer);
+            if (connection.getConnectionState() == ConnectionState.WRITING) {
+              ByteBuffer buffer = connection.getWriteBuffer();
+              channel.write(buffer);
 
-            if (!buffer.hasRemaining()) {
+              if (!buffer.hasRemaining()) {
                 connection.setConnectionState(ConnectionState.CLOSED);
                 buffer.clear();
                 key.interestOps(SelectionKey.OP_READ);
+              }
             }
+          }
         }
-    }
-}
-
 
         selector.selectedKeys().clear();
 

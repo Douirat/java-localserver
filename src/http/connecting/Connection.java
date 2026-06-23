@@ -16,20 +16,21 @@ import http.json.Serializer;
 
 public class Connection implements Connecting {
 
-
     private SocketChannel channel;
     private Requesting request = null;
     private Responding response = null;
-
 
     // buffers for reading and writing:
     private final ByteBuffer readBuffer = ByteBuffer.allocate(8192);
     final ByteBuffer writeBuffer = ByteBuffer.allocate(8192);
 
-        private boolean bufferFlipped = false;
+    private boolean bufferFlipped = false;
+    private boolean isFile = false;
 
-
+    // Keep track of the connection state.
     private ConnectionState state = ConnectionState.READING;
+
+    // reques state management.
     private RequestState requestState = RequestState.REQUEST_LINE;
 
     public Connection(SocketChannel channel) {
@@ -73,6 +74,11 @@ public class Connection implements Connecting {
     }
 
     @Override
+    public boolean isFile() {
+        return isFile;
+    }
+
+    @Override
     public void setConnectionState(ConnectionState state) {
         this.state = state;
     }
@@ -80,6 +86,11 @@ public class Connection implements Connecting {
     @Override
     public void setResponse(Response response) {
         this.response = response;
+    }
+
+    @Override
+    public void setIsFile(boolean value) {
+        this.isFile = value;
     }
 
     /*
@@ -267,9 +278,9 @@ public class Connection implements Connecting {
 
             // 4. Write everything to the buffer
             byte[] fullResponse = sb.toString().getBytes(StandardCharsets.UTF_8);
-            this.writeBuffer.clear();        // ← reset before each response
+            this.writeBuffer.clear(); // ← reset before each response
             this.writeBuffer.put(fullResponse);
-            this.writeBuffer.flip();         // ← switch to read mode so channel.write() works
+            this.writeBuffer.flip(); // ← switch to read mode so channel.write() works
 
         } catch (Exception e) {
             throw new RuntimeException("Error serializing response", e);
