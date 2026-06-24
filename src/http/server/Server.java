@@ -3,6 +3,9 @@ package http.server;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import http.connecting.Connection;
 import http.connecting.state.ConnectionState;
 import http.connecting.state.RequestState;
@@ -13,10 +16,12 @@ public class Server implements Serving {
 
   private int port;
   private Routing router;
+  private String staticDirectory;
 
   public Server() {
     this.port = 8080;
     this.router = new Router(); // we will set the router later when we implement it.
+    this.staticDirectory = "./static";
   }
 
   public void start() {
@@ -97,8 +102,8 @@ public class Server implements Serving {
               Response response = this.router.serve(connection.getRequest());
               if (response != null) {
                 connection.setResponse(response);
-                if(response.isStatic()) {
-                  //TODO: treat the static response accordingly.
+                if (response.isStatic()) {
+                  // TODO: treat the static response accordingly.
                 } else {
                   connection.prepareResponse();
                 }
@@ -146,6 +151,18 @@ public class Server implements Serving {
     } else {
       this.port = port;
     }
+  }
+
+  @Override
+  public void setStaticDirectory(String dir) {
+    Path base = Paths.get("./static").toAbsolutePath().normalize();
+    Path candidate = base.resolve(dir).normalize();
+
+    if (!candidate.startsWith(base)) {
+      throw new IllegalArgumentException("Invalid static directory");
+    }
+
+    this.staticDirectory = candidate.toString();
   }
 
   /**

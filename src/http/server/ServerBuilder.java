@@ -15,6 +15,12 @@ public class ServerBuilder implements ServingBuilder {
         return this;
     }
 
+    @Override
+    public ServingBuilder staticFiles(String dir){
+        this.server.setStaticDirectory(dir);
+        return this;
+    }
+
     // add routes to the router following the building mechanism to ease the API building for the user:
     @Override
     public ServingBuilder get(String path, Handler handler){

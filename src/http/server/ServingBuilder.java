@@ -4,6 +4,7 @@ import http.handler.Handler;
 
 public interface ServingBuilder {
     ServingBuilder port(int port);
+    ServingBuilder staticFiles(String dir);
     ServingBuilder get(String path, Handler handler);
     ServingBuilder post(String path, Handler handler);
     ServingBuilder put(String path, Handler handler);
