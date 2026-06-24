@@ -97,7 +97,12 @@ public class Server implements Serving {
               Response response = this.router.serve(connection.getRequest());
               if (response != null) {
                 connection.setResponse(response);
-                connection.prepareResponse();
+                if(response.isStatic()) {
+                  //TODO: treat the static response accordingly.
+                } else {
+                  connection.prepareResponse();
+                }
+
                 connection.setConnectionState(ConnectionState.WRITING);
                 key.interestOps(SelectionKey.OP_WRITE);
               }
@@ -116,6 +121,7 @@ public class Server implements Serving {
               if (!buffer.hasRemaining()) {
                 connection.setConnectionState(ConnectionState.CLOSED);
                 buffer.clear();
+
                 key.interestOps(SelectionKey.OP_READ);
               }
             }

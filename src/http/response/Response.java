@@ -1,8 +1,10 @@
 package http.response;
 
+import java.nio.file.Path;
 import java.util.*;
 import http.response.cookie.Cookie;
 import http.response.responseBody.Body;
+import http.response.responseBody.FileBody;
 import http.response.responseBody.MemoryBody;
 import http.response.status.HttpStatusMessages;
 
@@ -13,11 +15,14 @@ public class Response implements Responding {
     private String statusReason; // the status line.
     private final Map<String, String> headers = new HashMap<>();
     private final List<Cookie> cookies = new ArrayList<>();
+    private boolean isFileResponse;
 
     private Body body;
 
 
-    public Response(){}
+    public Response(){
+        this.isFileResponse = false;
+    }
 
     // Setters:
     public void setVersion(String version){this.version = version;}
@@ -28,7 +33,6 @@ public class Response implements Responding {
         this.statusReason = HttpStatusMessages.getMessage(status);
     }
 
-
     public void setHeader(String key, String value){
         this.headers.put(key, value);
     }
@@ -37,10 +41,21 @@ public class Response implements Responding {
         this.cookies.add(cookie);
     }
 
+    public void SetAsStatic(){
+        this.isFileResponse = true;
+    }
+
     public void setBody(Object data){
         MemoryBody body = new MemoryBody();
         body.setData(data);
         this.body = body;
+    }
+
+    public void serveFile(Path path){
+        FileBody data = new FileBody();
+        data.setPath(path);
+        this.SetAsStatic();
+        this.body = data;
     }
 
     // Getters:
@@ -54,11 +69,13 @@ public class Response implements Responding {
 
    public List<Cookie> getCookies(){return Collections.unmodifiableList(cookies);}
    
+   public boolean isStatic(){
+    return this.isFileResponse;
+   }
 
     public Map<String, String> getHeaders() {
         return Collections.unmodifiableMap(headers);
     }
-
 
     public Object getBody(){
         MemoryBody object =(MemoryBody) this.body;
