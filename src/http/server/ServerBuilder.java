@@ -16,7 +16,7 @@ public class ServerBuilder implements ServingBuilder {
     }
 
     @Override
-    public ServingBuilder staticFiles(String dir){
+    public ServingBuilder staticRoute(String dir){
         this.server.setStaticDirectory(dir);
         return this;
     }

@@ -1,5 +1,6 @@
 package http.connecting;
 
+import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -32,6 +33,22 @@ public class Connection implements Connecting {
 
     // reques state management.
     private RequestState requestState = RequestState.REQUEST_LINE;
+
+    /**
+     * In case of a static file so i have the possibility to handle static files as
+     * well:
+     */
+    private FileChannel fileChannel;
+    private long filePosition;
+    private long fileSize;
+
+    /**
+     * FileChannel fc =
+     * FileChannel.open(path);
+     * connection.setFileChannel(fc);
+     * connection.setFilePosition(0);
+     * connection.setFileSize(fc.size());
+     */
 
     public Connection(SocketChannel channel) {
         this.channel = channel;
@@ -79,6 +96,21 @@ public class Connection implements Connecting {
     }
 
     @Override
+    public FileChannel getFileChannel() {
+        return this.fileChannel;
+    }
+
+    @Override
+    public long getFilePosition() {
+        return this.filePosition;
+    }
+
+    @Override
+    public long getFileSize() {
+        return this.fileSize;
+    }
+
+    @Override
     public void setConnectionState(ConnectionState state) {
         this.state = state;
     }
@@ -89,8 +121,13 @@ public class Connection implements Connecting {
     }
 
     @Override
-    public void setFileResponse(boolean value) {
+    public void setAsStaticResponse(boolean value) {
         this.isFile = value;
+    }
+
+    @Override
+    public void setFileChannel(FileChannel fileChannel) {
+        this.fileChannel = fileChannel;
     }
 
     /*

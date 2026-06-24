@@ -1,6 +1,7 @@
 package http.connecting;
 
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 
 import http.connecting.state.ConnectionState;
@@ -21,6 +22,12 @@ public interface Connecting {
 
     boolean isFileResponse();
 
+    FileChannel getFileChannel();
+
+    long getFilePosition();
+
+    long getFileSize();
+
     void setResponse(Response response);
 
     ConnectionState getConnectionState();
@@ -29,7 +36,9 @@ public interface Connecting {
 
     void setConnectionState(ConnectionState state);
 
-    void setFileResponse(boolean value);
+    void setAsStaticResponse(boolean value);
+
+    void setFileChannel(FileChannel fileChannel);
 
     void ParseRequest();
 
