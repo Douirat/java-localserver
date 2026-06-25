@@ -36,7 +36,7 @@ public interface Connecting {
 
     void setConnectionState(ConnectionState state);
 
-    void setAsStaticResponse(boolean value);
+    void setAsStaticResponse();
 
     void setFileChannel(FileChannel fileChannel);
 

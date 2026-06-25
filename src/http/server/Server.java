@@ -105,6 +105,8 @@ public class Server implements Serving {
               if (response != null) {
                 connection.setResponse(response);
                 if (response.isStatic()) {
+                  connection.setAsStaticResponse();
+
                   FileBody body = (FileBody) response.getBody();
                   Path path = body.getPath();
                   FileChannel fc = FileChannel.open(path, StandardOpenOption.READ);
@@ -118,7 +120,7 @@ public class Server implements Serving {
                   connection.prepareResponse();
                 }
 
-                connection.setConnectionState(ConnectionState.WRITING);
+                connection.setConnectionState(ConnectionState.WRITING_HEADERS);
                 key.interestOps(SelectionKey.OP_WRITE);
               }
             }
@@ -129,7 +131,7 @@ public class Server implements Serving {
             Connection connection = (Connection) key.attachment();
             SocketChannel channel = connection.getChannel();
 
-            if (connection.getConnectionState() == ConnectionState.WRITING) {
+            if (connection.getConnectionState() == ConnectionState.WRITING_HEADERS) {
               ByteBuffer buffer = connection.getWriteBuffer();
               channel.write(buffer);
 

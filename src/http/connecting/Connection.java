@@ -121,8 +121,8 @@ public class Connection implements Connecting {
     }
 
     @Override
-    public void setAsStaticResponse(boolean value) {
-        this.isFile = value;
+    public void setAsStaticResponse() {
+        this.isFile = true;
     }
 
     @Override
