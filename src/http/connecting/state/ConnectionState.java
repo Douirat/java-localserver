@@ -3,6 +3,7 @@ package http.connecting.state;
 public enum ConnectionState {
         READING,
         PROCESSING,
-        WRITING,
+        WRITING_HEADERS,
+        WRITING_BODY,
         CLOSED
 }

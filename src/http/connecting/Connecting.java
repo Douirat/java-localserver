@@ -40,6 +40,10 @@ public interface Connecting {
 
     void setFileChannel(FileChannel fileChannel);
 
+    void setFileSize(long size);
+
+    void setFilePosition(int position);
+
     void ParseRequest();
 
     int parseHeaders(String[] lines);

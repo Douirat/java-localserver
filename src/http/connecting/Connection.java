@@ -130,6 +130,16 @@ public class Connection implements Connecting {
         this.fileChannel = fileChannel;
     }
 
+    @Override
+    public void setFileSize(long size) {
+        this.fileSize = size;
+    }
+
+    @Override
+    public void setFilePosition(int position) {
+        this.filePosition = position;
+    }
+
     /*
      * Parses the HTTP request from the read buffer and prepares the response.
      */
@@ -259,59 +269,14 @@ public class Connection implements Connecting {
             // 2. Auto-set Content-Length based on serialized body
             byte[] bodyBytes = bodyJson.getBytes(StandardCharsets.UTF_8);
 
-            // 3. Build the response string
-            StringBuilder sb = new StringBuilder();
+            String headers = this.prepareHeaders(bodyBytes.length);
 
-            // Status line: HTTP/1.1 200 OK
-            String version = this.response.getVersion() != null ? this.response.getVersion() : "HTTP/1.1";
-            sb.append(version)
-                    .append(" ")
-                    .append(this.response.getStatus())
-                    .append(" ")
-                    .append(this.response.getStatusReason())
-                    .append("\r\n");
-
-            // Headers
-            for (Map.Entry<String, String> entry : this.response.getHeaders().entrySet()) {
-                sb.append(entry.getKey())
-                        .append(": ")
-                        .append(entry.getValue())
-                        .append("\r\n");
-            }
-
-            // Auto-inject Content-Length
-            sb.append("Content-Length: ")
-                    .append(bodyBytes.length)
-                    .append("\r\n");
-
-            // Cookies (Set-Cookie headers)
-            for (Cookie cookie : this.response.getCookies()) {
-                sb.append("Set-Cookie: ")
-                        .append(cookie.getName())
-                        .append("=")
-                        .append(cookie.getValue());
-
-                if (cookie.getDomain() != null)
-                    sb.append("; Domain=").append(cookie.getDomain());
-                if (cookie.getPath() != null)
-                    sb.append("; Path=").append(cookie.getPath());
-                if (cookie.getExpires() != null)
-                    sb.append("; Expires=").append(cookie.getExpires());
-                if (cookie.isHttpOnly())
-                    sb.append("; HttpOnly");
-                if (cookie.isSecure())
-                    sb.append("; Secure");
-
-                sb.append("\r\n");
-            }
-
-            // Blank line separating headers from body (mandated by HTTP spec)
-            sb.append("\r\n");
+            StringBuilder sb = new StringBuilder(headers);
 
             // Body
             sb.append(bodyJson);
 
-            System.out.println("\n -----> Response \n" + sb.toString());
+            // System.out.println("\n -----> Response \n" + sb.toString());
 
             // 4. Write everything to the buffer
             byte[] fullResponse = sb.toString().getBytes(StandardCharsets.UTF_8);
@@ -322,6 +287,58 @@ public class Connection implements Connecting {
         } catch (Exception e) {
             throw new RuntimeException("Error serializing response", e);
         }
+    }
+
+    public String prepareHeaders(int size) {
+        // 3. Build the response string
+        StringBuilder sb = new StringBuilder();
+
+        // Status line: HTTP/1.1 200 OK
+        String version = this.response.getVersion() != null ? this.response.getVersion() : "HTTP/1.1";
+        sb.append(version)
+                .append(" ")
+                .append(this.response.getStatus())
+                .append(" ")
+                .append(this.response.getStatusReason())
+                .append("\r\n");
+
+        // Headers
+        for (Map.Entry<String, String> entry : this.response.getHeaders().entrySet()) {
+            sb.append(entry.getKey())
+                    .append(": ")
+                    .append(entry.getValue())
+                    .append("\r\n");
+        }
+
+        // Auto-inject Content-Length
+        sb.append("Content-Length: ")
+                .append(size)
+                .append("\r\n");
+
+        // Cookies (Set-Cookie headers)
+        for (Cookie cookie : this.response.getCookies()) {
+            sb.append("Set-Cookie: ")
+                    .append(cookie.getName())
+                    .append("=")
+                    .append(cookie.getValue());
+
+            if (cookie.getDomain() != null)
+                sb.append("; Domain=").append(cookie.getDomain());
+            if (cookie.getPath() != null)
+                sb.append("; Path=").append(cookie.getPath());
+            if (cookie.getExpires() != null)
+                sb.append("; Expires=").append(cookie.getExpires());
+            if (cookie.isHttpOnly())
+                sb.append("; HttpOnly");
+            if (cookie.isSecure())
+                sb.append("; Secure");
+
+            sb.append("\r\n");
+        }
+
+        // Blank line separating headers from body (mandated by HTTP spec)
+        sb.append("\r\n");
+        return sb.toString();
     }
 
 }

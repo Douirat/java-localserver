@@ -5,12 +5,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 
 import http.connecting.Connection;
 import http.connecting.state.ConnectionState;
 import http.connecting.state.RequestState;
 import http.router.*;
 import http.response.*;
+import http.response.responseBody.FileBody;
 
 public class Server implements Serving {
 
@@ -103,7 +105,15 @@ public class Server implements Serving {
               if (response != null) {
                 connection.setResponse(response);
                 if (response.isStatic()) {
-                  // TODO: treat the static response accordingly.
+                  FileBody body = (FileBody) response.getBody();
+                  Path path = body.getPath();
+                  FileChannel fc = FileChannel.open(path, StandardOpenOption.READ);
+
+                  connection.setFileChannel(fc);
+                  connection.setFileSize(fc.size());
+                  connection.setFilePosition(0);
+                  String headers = connection.prepareHeaders((int) fc.size());
+                  
                 } else {
                   connection.prepareResponse();
                 }
