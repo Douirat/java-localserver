@@ -24,7 +24,7 @@ public interface Connecting {
 
     Request getRequest();
 
-    boolean isFileResponse();
+    boolean isStaticResponse();
 
     FileChannel getFileChannel();
 
@@ -46,7 +46,9 @@ public interface Connecting {
 
     void setFileSize(long size);
 
-    void setFilePosition(int position);
+    void setFilePosition(long position);
+
+    void loadBuffer(byte[] bytes);
 
     void ParseRequest();
 

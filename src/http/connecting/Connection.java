@@ -25,11 +25,11 @@ public class Connection implements Connecting {
     // private final ByteBuffer headersBuffer = ByteBuffer.allocate(8192);
     // private final ByteBuffer bodyBuffer = ByteBuffer.allocate(8192);
     // private final ByteBuffer writeBuffer = ByteBuffer.allocate(8192);
-   
+
     private final ByteBuffer buffer = ByteBuffer.allocate(8192);
 
     private boolean bufferFlipped = false;
-    private boolean isFile = false;
+    private boolean isStatic = false;
 
     // Keep track of the connection state.
     private ConnectionState state = ConnectionState.READING;
@@ -75,17 +75,17 @@ public class Connection implements Connecting {
 
     // @Override
     // public ByteBuffer getHeadersBuffer() {
-    //     return this.headersBuffer;
+    // return this.headersBuffer;
     // }
 
     // @Override
     // public ByteBuffer getBodyBuffer() {
-    //     return this.bodyBuffer;
+    // return this.bodyBuffer;
     // }
 
     // @Override
     // public ByteBuffer getWriteBuffer() {
-    //     return this.writeBuffer;
+    // return this.writeBuffer;
     // }
 
     @Override
@@ -104,8 +104,8 @@ public class Connection implements Connecting {
     }
 
     @Override
-    public boolean isFileResponse() {
-        return isFile;
+    public boolean isStaticResponse() {
+        return isStatic;
     }
 
     @Override
@@ -135,7 +135,8 @@ public class Connection implements Connecting {
 
     @Override
     public void setAsStaticResponse() {
-        this.isFile = true;
+        this.setConnectionState(ConnectionState.WRITING_HEADERS);
+        this.isStatic = true;
     }
 
     @Override
@@ -149,8 +150,15 @@ public class Connection implements Connecting {
     }
 
     @Override
-    public void setFilePosition(int position) {
+    public void setFilePosition(long position) {
         this.filePosition = position;
+    }
+
+    public void loadBuffer(byte[] bytes) {
+        if (bytes.length > buffer.remaining()) {
+            throw new IllegalStateException("Not enough space in buffer");
+        }
+        buffer.put(bytes);
     }
 
     /*

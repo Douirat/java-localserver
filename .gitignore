@@ -3,3 +3,5 @@
 
 # Ignore build output directory
 /build/
+
+/static/

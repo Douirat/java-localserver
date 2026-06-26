@@ -112,7 +112,11 @@ public class Server implements Serving {
                   connection.setFileSize(fc.size());
                   connection.setFilePosition(0);
                   String headers = connection.prepareHeaders((int) fc.size());
-                
+                  byte[] headersBytes = headers.getBytes();
+                  connection.loadBuffer(headersBytes);
+
+                  connection.setConnectionState(ConnectionState.WRITING_HEADERS);
+
                 } else {
                   connection.prepareResponse();
                 }
@@ -125,10 +129,46 @@ public class Server implements Serving {
           }
 
           if (key.isWritable()) {
+
             Connection connection = (Connection) key.attachment();
             SocketChannel channel = connection.getChannel();
 
-            if (connection.getConnectionState() == ConnectionState.WRITING_HEADERS) {
+            if (connection.isStaticResponse()) {
+
+              if (connection.getConnectionState() == ConnectionState.WRITING_HEADERS) {
+                ByteBuffer buffer = connection.getBuffer();
+                channel.write(buffer);
+
+                if (!buffer.hasRemaining()) {
+                  connection.setConnectionState(ConnectionState.WRITING_BODY);
+                  buffer.clear();
+                }
+
+                } else if (connection.getConnectionState() == ConnectionState.WRITING_BODY) {
+                  long sent = connection.getFileChannel().transferTo(
+                      connection.getFilePosition(),
+                      connection.getFileSize()
+                          - connection.getFilePosition(),
+                      channel);
+
+                  if (sent > 0) {
+                    connection.setFilePosition(connection.getFilePosition() + sent);
+                  }
+
+                  if (connection.getFilePosition() >= connection.getFileSize()) {
+
+                    connection.getFileChannel().close();
+
+                    connection.setConnectionState(
+                        ConnectionState.CLOSED);
+
+                    channel.close();
+                    key.cancel();
+                  }
+              }
+
+            } else {
+
               ByteBuffer buffer = connection.getBuffer();
               channel.write(buffer);
 
@@ -138,8 +178,11 @@ public class Server implements Serving {
 
                 key.interestOps(SelectionKey.OP_READ);
               }
+
             }
+
           }
+
         }
 
         selector.selectedKeys().clear();
