@@ -53,11 +53,8 @@ public class Server implements Serving {
        * IP: 0.0.0.0 (usually all interfaces)
        * Port: 8080 (your value)
        * What this means physically
-       * 
        * The OS now knows:
-       * 
        * “Any incoming TCP connection targeting port 8080 should go to this socket.”
-       * 
        */
       serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
@@ -90,7 +87,7 @@ public class Server implements Serving {
             Connection connection = (Connection) key.attachment();
             SocketChannel channel = connection.getChannel();
 
-            int bytes = channel.read(connection.getReadBuffer());
+            int bytes = channel.read(connection.getBuffer());
 
             if (bytes == -1) {
               channel.close();
@@ -115,7 +112,7 @@ public class Server implements Serving {
                   connection.setFileSize(fc.size());
                   connection.setFilePosition(0);
                   String headers = connection.prepareHeaders((int) fc.size());
-                  
+                
                 } else {
                   connection.prepareResponse();
                 }
@@ -132,7 +129,7 @@ public class Server implements Serving {
             SocketChannel channel = connection.getChannel();
 
             if (connection.getConnectionState() == ConnectionState.WRITING_HEADERS) {
-              ByteBuffer buffer = connection.getWriteBuffer();
+              ByteBuffer buffer = connection.getBuffer();
               channel.write(buffer);
 
               if (!buffer.hasRemaining()) {

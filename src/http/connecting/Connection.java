@@ -22,8 +22,11 @@ public class Connection implements Connecting {
     private Responding response = null;
 
     // buffers for reading and writing:
-    private final ByteBuffer readBuffer = ByteBuffer.allocate(8192);
-    final ByteBuffer writeBuffer = ByteBuffer.allocate(8192);
+    // private final ByteBuffer headersBuffer = ByteBuffer.allocate(8192);
+    // private final ByteBuffer bodyBuffer = ByteBuffer.allocate(8192);
+    // private final ByteBuffer writeBuffer = ByteBuffer.allocate(8192);
+   
+    private final ByteBuffer buffer = ByteBuffer.allocate(8192);
 
     private boolean bufferFlipped = false;
     private boolean isFile = false;
@@ -70,14 +73,24 @@ public class Connection implements Connecting {
         return (Response) this.response;
     }
 
-    @Override
-    public ByteBuffer getReadBuffer() {
-        return this.readBuffer;
-    }
+    // @Override
+    // public ByteBuffer getHeadersBuffer() {
+    //     return this.headersBuffer;
+    // }
+
+    // @Override
+    // public ByteBuffer getBodyBuffer() {
+    //     return this.bodyBuffer;
+    // }
+
+    // @Override
+    // public ByteBuffer getWriteBuffer() {
+    //     return this.writeBuffer;
+    // }
 
     @Override
-    public ByteBuffer getWriteBuffer() {
-        return this.writeBuffer;
+    public ByteBuffer getBuffer() {
+        return this.buffer;
     }
 
     @Override
@@ -152,32 +165,32 @@ public class Connection implements Connecting {
 
         // ← only flip once, not on every call
         if (!bufferFlipped) { // see note below
-            readBuffer.flip();
+            buffer.flip();
             bufferFlipped = true;
         }
 
-        int limit = readBuffer.limit();
+        int limit = buffer.limit();
         int headerEnd = -1;
 
         for (int i = 0; i < limit - 3; i++) {
-            if (readBuffer.get(i) == '\r'
-                    && readBuffer.get(i + 1) == '\n'
-                    && readBuffer.get(i + 2) == '\r'
-                    && readBuffer.get(i + 3) == '\n') {
+            if (buffer.get(i) == '\r'
+                    && buffer.get(i + 1) == '\n'
+                    && buffer.get(i + 2) == '\r'
+                    && buffer.get(i + 3) == '\n') {
                 headerEnd = i;
                 break;
             }
         }
 
         if (headerEnd == -1) {
-            readBuffer.compact(); // ← compact switches back to write mode safely
+            buffer.compact(); // ← compact switches back to write mode safely
             bufferFlipped = false;
             return;
         }
 
         byte[] headerBytes = new byte[headerEnd];
         for (int i = 0; i < headerEnd; i++) {
-            headerBytes[i] = readBuffer.get(i);
+            headerBytes[i] = buffer.get(i);
         }
 
         String headersText = new String(headerBytes, StandardCharsets.UTF_8);
@@ -200,7 +213,7 @@ public class Connection implements Connecting {
 
         if (requestState == RequestState.COMPLETE) {
             state = ConnectionState.PROCESSING;
-            readBuffer.clear();
+            buffer.clear();
             bufferFlipped = false;
         }
     }
@@ -244,17 +257,17 @@ public class Connection implements Connecting {
     public void parseBody(int bodyStart) {
         int contentLength = Integer.parseInt(this.request.getHeaders().getOrDefault("Content-Length", "0"));
 
-        int available = readBuffer.limit() - bodyStart;
+        int available = buffer.limit() - bodyStart;
 
         if (available < contentLength) {
-            readBuffer.compact();
+            buffer.compact();
             return; // wait for more data
         }
 
         byte[] bodyBytes = new byte[contentLength];
 
-        readBuffer.position(bodyStart);
-        readBuffer.get(bodyBytes);
+        buffer.position(bodyStart);
+        buffer.get(bodyBytes);
         this.request.setBody(bodyBytes);
         this.requestState = RequestState.COMPLETE;
     }
@@ -280,9 +293,9 @@ public class Connection implements Connecting {
 
             // 4. Write everything to the buffer
             byte[] fullResponse = sb.toString().getBytes(StandardCharsets.UTF_8);
-            this.writeBuffer.clear(); // ← reset before each response
-            this.writeBuffer.put(fullResponse);
-            this.writeBuffer.flip(); // ← switch to read mode so channel.write() works
+            this.buffer.clear(); // ← reset before each response
+            this.buffer.put(fullResponse);
+            this.buffer.flip(); // ← switch to read mode so channel.write() works
 
         } catch (Exception e) {
             throw new RuntimeException("Error serializing response", e);

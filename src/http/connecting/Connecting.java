@@ -12,9 +12,13 @@ import http.response.*;
 public interface Connecting {
     SocketChannel getChannel();
 
-    ByteBuffer getReadBuffer();
+    // ByteBuffer getHeadersBuffer();
 
-    ByteBuffer getWriteBuffer();
+    // ByteBuffer getBodyBuffer();
+
+    // ByteBuffer getWriteBuffer();
+
+    ByteBuffer getBuffer();
 
     Response getResponse();
 
