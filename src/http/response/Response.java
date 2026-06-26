@@ -15,14 +15,12 @@ public class Response implements Responding {
     private String statusReason; // the status line.
     private final Map<String, String> headers = new HashMap<>();
     private final List<Cookie> cookies = new ArrayList<>();
-    private boolean isFileResponse;
+    private boolean isStaticResponse = false;
 
     private Body body;
 
 
-    public Response(){
-        this.isFileResponse = false;
-    }
+    public Response(){}
 
     // Setters:
     public void setVersion(String version){this.version = version;}
@@ -42,7 +40,7 @@ public class Response implements Responding {
     }
 
     public void SetAsStatic(){
-        this.isFileResponse = true;
+        this.isStaticResponse = true;
     }
 
     public void setBody(Object data){
@@ -70,7 +68,7 @@ public class Response implements Responding {
    public List<Cookie> getCookies(){return Collections.unmodifiableList(cookies);}
    
    public boolean isStatic(){
-    return this.isFileResponse;
+    return this.isStaticResponse;
    }
 
     public Map<String, String> getHeaders() {
