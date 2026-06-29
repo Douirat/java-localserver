@@ -1,5 +1,6 @@
 package http.response;
 
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.*;
 import http.response.cookie.Cookie;
@@ -49,9 +50,9 @@ public class Response implements Responding {
         this.body = body;
     }
 
-    public void serveFile(Path path){
+    public void setFileChannel(FileChannel channel){
         FileBody data = new FileBody();
-        data.setPath(path);
+        data.setChannel(channel);
         this.SetAsStatic();
         this.body = data;
     }

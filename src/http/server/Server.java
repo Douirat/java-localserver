@@ -105,8 +105,7 @@ public class Server implements Serving {
                   connection.setAsStaticResponse();
 
                   FileBody body = (FileBody) response.getBody();
-                  Path path = body.getPath();
-                  FileChannel fc = FileChannel.open(path, StandardOpenOption.READ);
+                  FileChannel fc = body.getChannel();
 
                   connection.setFileChannel(fc);
                   connection.setFileSize(fc.size());

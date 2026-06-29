@@ -1,5 +1,6 @@
 package http.response;
 
+import java.nio.channels.FileChannel;
 import java.util.*;
 import http.response.cookie.*;
 
@@ -9,6 +10,8 @@ public interface Responding {
     void setHeader(String key, String value);
     void addCookie(Cookie cookie);
     void setBody(Object body);
+    void SetAsStatic();
+    void setFileChannel(FileChannel channel);
     String getVersion();
     int getStatus();
     String getStatusReason();

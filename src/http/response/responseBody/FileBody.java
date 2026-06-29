@@ -11,10 +11,10 @@ public class FileBody implements Body {
     public BodyType type(){
         return BodyType.FILE;
     }
-    public void setPath(FileChannel channel) {
+    public void setChannel(FileChannel channel) {
         this.channel = channel;
     }
-    public FileChannel getPath() {
+    public FileChannel getChannel() {
         return this.channel;
     }
 }
