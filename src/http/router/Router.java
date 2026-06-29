@@ -175,8 +175,7 @@ public class Router implements Routing {
     @Override
     public Response serveFile(Path path)
             throws IOException {
-            FileChannel fc =
-        FileChannel.open(
+        FileChannel fc = FileChannel.open(
                 path,
                 StandardOpenOption.READ);
 
@@ -192,9 +191,9 @@ public class Router implements Routing {
                 .setHeader(
                         "Content-Type",
                         mime)
-                // .setHeader(  ---> i will add this after. to allow chnks sending
-                //         "Accept-Ranges",
-                //        "bytes")
+                // .setHeader( ---> i will add this after. to allow chnks sending
+                // "Accept-Ranges",
+                // "bytes")
                 .setBody(data)
                 .build();
     }
@@ -224,6 +223,16 @@ public class Router implements Routing {
             if (handler != null) {
                 return handler;
             }
+
+            for (var entry : routesMap.entrySet()) {
+                String route = entry.getKey();
+
+                if (route.equals("/static/")
+                        && request.getPath().startsWith("/static/")) {
+                    return entry.getValue();
+                }
+            }
+
         }
 
         // then check dynamic routes:

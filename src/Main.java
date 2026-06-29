@@ -116,6 +116,10 @@ public class Main {
                 return response;
             })
 
+            .get("/static", (Request request) -> {
+                
+            })
+
             .build();
 
         server.start();

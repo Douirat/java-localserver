@@ -14,10 +14,13 @@ public class Request implements Requesting {
     private String version;
 
 
+
     private final Map<String, String> headers = new HashMap<>();
     private final Map<String, String> queryParameters = new HashMap<>();
     private final Map<String, String> pathVariables = new HashMap<>(); 
     private  final Map<String, String> cookies = new HashMap<>();
+
+    // In the case of a static file i will need to add the 
 
     
     private byte[] body;
