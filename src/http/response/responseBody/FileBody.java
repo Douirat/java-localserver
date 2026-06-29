@@ -1,17 +1,20 @@
 package http.response.responseBody;
 
-import java.nio.file.Path;
+import java.nio.channels.FileChannel;
 
 public class FileBody implements Body {
-    private Path path;
+    private FileChannel channel;
+    // private long size; optional cause i will form that before hand.
+    // private String mimeType;
+    
     public FileBody(){}
     public BodyType type(){
         return BodyType.FILE;
     }
-    public void setPath(Path path) {
-        this.path = path;
+    public void setPath(FileChannel channel) {
+        this.channel = channel;
     }
-    public Path getPath() {
-        return this.path;
+    public FileChannel getPath() {
+        return this.channel;
     }
 }

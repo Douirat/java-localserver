@@ -1,5 +1,6 @@
 package http.router;
 
+import java.nio.file.Path;
 import java.util.*;
 import http.request.Request;
 import http.response.Response;
@@ -88,6 +89,12 @@ public Response serve(Request request){
     
     return handler.handle(request);
 }
+
+// create a method specifically for serving static files:
+@Override
+public Response serveFile(Path path){
+    
+} 
 
 // check a valid method:
  @Override
