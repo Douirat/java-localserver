@@ -1,13 +1,14 @@
 package http.response;
 
 import java.nio.channels.FileChannel;
-import java.nio.file.Path;
 import java.util.*;
 import http.response.cookie.Cookie;
 import http.response.responseBody.Body;
 import http.response.responseBody.FileBody;
 import http.response.responseBody.MemoryBody;
 import http.response.status.HttpStatusMessages;
+
+// TODO: CHANGING THE WAY THE BODY IS RETURNED TO AVOID ALWAYS HAVING THE BODY RETURENED IN THE MEMORY FILE
 
 
 public class Response implements Responding {
