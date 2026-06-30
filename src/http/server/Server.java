@@ -18,12 +18,11 @@ public class Server implements Serving {
 
   private int port;
   private Routing router;
-  private String staticDirectory;
+ 
 
   public Server() {
     this.port = 8080;
     this.router = new Router(); // we will set the router later when we implement it.
-    this.staticDirectory = "./static";
   }
 
   public void start() {

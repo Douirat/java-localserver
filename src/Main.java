@@ -2,9 +2,12 @@ import http.server.ServerBuilder;
 import http.server.Server;
 import http.request.Request;
 import http.response.Response;
+import http.response.ResponseBuilder;
 import model.User;
 import http.response.cookie.*;
+import http.router.Router;
 
+import java.nio.file.Path;
 import java.util.*;
 
 public class Main {
@@ -116,7 +119,14 @@ public class Main {
                 return response;
             })
 
-            .get("/static", (Request request) -> {
+            .serveStatic("/static", () -> {
+                try {
+                    return Router.serveFile(Path.of(request.getPath()));
+                } catch (Exception e) {
+                    return new ResponseBuilder()
+                    .setStatus(401)
+                    .build();
+                }
                 
             })
 

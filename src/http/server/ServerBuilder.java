@@ -1,5 +1,7 @@
 package http.server;
 
+import java.nio.file.Path;
+
 import http.handler.Handler;
 
 public class ServerBuilder implements ServingBuilder {
@@ -50,6 +52,12 @@ public class ServerBuilder implements ServingBuilder {
     @Override
     public ServingBuilder patch(String path, Handler handler){
         this.server.getRouter().addRoute("PATCH", path, handler);
+        return this;
+    }
+
+    @Override
+    public ServingBuilder serveStatic(String path){
+        this.server.getRouter().setStaticDirectory(path);
         return this;
     }
 

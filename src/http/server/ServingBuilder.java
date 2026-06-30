@@ -10,5 +10,6 @@ public interface ServingBuilder {
     ServingBuilder put(String path, Handler handler);
     ServingBuilder delete(String path, Handler handler);
     ServingBuilder patch(String path, Handler handler);
+    ServingBuilder serveStatic(String path);
     Server build();
 }

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
 import http.request.Request;
@@ -19,6 +20,8 @@ public class Router implements Routing {
     // method => path => Response handle(Request req);
     Map<String, Map<String, Handler>> routes;
     Map<String, Map<String, Handler>> dynamicRoutes; // for routes with path variables, e.g., /api/users/{id}>>
+
+    private String staticDirectory;
 
     private static final Map<String, String> MIME_TYPES = Map.ofEntries(
             // HTML / Text
@@ -99,6 +102,7 @@ public class Router implements Routing {
 
     // no args constructor:
     public Router() {
+        this.staticDirectory = "static";
         routes = new HashMap<>();
         dynamicRoutes = new HashMap<>();
         // Pre-create all HTTP method maps
@@ -156,6 +160,28 @@ public class Router implements Routing {
     // The API to expose to the server in order to pass in requests:
     @Override
     public Response serve(Request request) {
+
+        if (request.getMethod().equals("GET")) {
+
+            String prefix = "/" + this.staticDirectory + "/";
+
+            if (request.getPath().startsWith(prefix)) {
+                try {
+                    String relative = request.getPath()
+                            .substring(prefix.length());
+
+                    Path requested = Paths.get(this.staticDirectory)
+                            .resolve(relative);
+
+                    return this.serveFile(requested);
+
+                } catch (IOException e) {
+                    return new ResponseBuilder()
+                            .setStatus(500)
+                            .build();
+                }
+            }
+        }
         Handler handler = this.matchRoute(request);
 
         // if no handler found, return 404 response:
@@ -171,31 +197,72 @@ public class Router implements Routing {
         return handler.handle(request);
     }
 
-    // create a method specifically for serving static files:
-    @Override
-    public Response serveFile(Path path)
+    // Serve a static file from the configured static directory.
+    public Response serveFile(Path requested)
             throws IOException {
-        FileChannel fc = FileChannel.open(
-                path,
-                StandardOpenOption.READ);
 
-        FileBody data = new FileBody();
-        data.setChannel(fc);
-        long size = Files.size(path);
-        String mime = mimeToContentType(path);
-        return new ResponseBuilder()
-                .setStatus(200)
-                .setHeader(
-                        "Content-Length",
-                        Long.toString(size))
-                .setHeader(
-                        "Content-Type",
-                        mime)
-                // .setHeader( ---> i will add this after. to allow chnks sending
-                // "Accept-Ranges",
-                // "bytes")
-                .setBody(data)
-                .build();
+        Path path = requested
+                .toAbsolutePath()
+                .normalize();
+
+        // Prevent escaping the static directory.
+        if (!path.startsWith(this.staticDirectory)) {
+            return new ResponseBuilder()
+                    .setStatus(403)
+                    .build();
+        }
+
+        // File does not exist.
+        if (!Files.exists(path)) {
+            return new ResponseBuilder()
+                    .setStatus(404)
+                    .build();
+        }
+
+        // Not a regular file (directory, device, etc.).
+        if (!Files.isRegularFile(path)) {
+            return new ResponseBuilder()
+                    .setStatus(404)
+                    .build();
+        }
+
+        // Exists but cannot be read.
+        if (!Files.isReadable(path)) {
+            return new ResponseBuilder()
+                    .setStatus(403)
+                    .build();
+        }
+
+        FileChannel fc = null;
+
+        try {
+            fc = FileChannel.open(
+                    path,
+                    StandardOpenOption.READ);
+
+            long size = fc.size();
+            String mime = mimeToContentType(path);
+
+            FileBody body = new FileBody();
+            body.setChannel(fc);
+
+            return new ResponseBuilder()
+                    .setStatus(200)
+                    .setHeader(
+                            "Content-Length",
+                            Long.toString(size))
+                    .setHeader(
+                            "Content-Type",
+                            mime)
+                    .setBody(body)
+                    .build();
+
+        } catch (Exception e) {
+            if (fc != null) {
+                fc.close();
+            }
+            throw e;
+        }
     }
 
     // check a valid method:
@@ -224,14 +291,14 @@ public class Router implements Routing {
                 return handler;
             }
 
-            for (var entry : routesMap.entrySet()) {
-                String route = entry.getKey();
+            // for (var entry : routesMap.entrySet()) {
+            // String route = entry.getKey();
 
-                if (route.equals("/static/")
-                        && request.getPath().startsWith("/static/")) {
-                    return entry.getValue();
-                }
-            }
+            // if (route.equals(this.staticDirectory)
+            // && request.getPath().startsWith("/static/")) {
+            // return entry.getValue();
+            // }
+            // }
 
         }
 
@@ -268,6 +335,16 @@ public class Router implements Routing {
         return null; // No matching route found
     }
 
+    @Override
+    public void setStaticDirectory(String route) {
+        this.staticDirectory = route;
+    }
+
+    @Override
+    public String getStaticDirectory() {
+        return this.staticDirectory;
+    }
+
     /**
      * Create a method that:
      * 
@@ -282,7 +359,7 @@ public class Router implements Routing {
      *         application/pdf
      */
 
-    private String mimeToContentType(Path path) {
+    public static String mimeToContentType(Path path) {
         String file = path.getFileName().toString();
 
         int dot = file.lastIndexOf('.');
