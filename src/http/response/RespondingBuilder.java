@@ -7,5 +7,6 @@ public interface RespondingBuilder<T extends RespondingBuilder<T>> {
     T setHeader(String key, String value);
     T addCookie(Cookie cookie);
     T setBody(Object body);
+    T setAsStatic();
     Response build();
 }

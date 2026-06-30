@@ -203,17 +203,6 @@ public class Server implements Serving {
     }
   }
 
-  @Override
-  public void setStaticDirectory(String dir) {
-    Path base = Paths.get("./static").toAbsolutePath().normalize();
-    Path candidate = base.resolve(dir).normalize();
-
-    if (!candidate.startsWith(base)) {
-      throw new IllegalArgumentException("Invalid static directory");
-    }
-
-    this.staticDirectory = candidate.toString();
-  }
 
   /**
    * Creating my getters.

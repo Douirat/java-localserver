@@ -40,6 +40,12 @@ public class ResponseBuilder implements RespondingBuilder<ResponseBuilder> {
     }
 
     @Override
+      public ResponseBuilder setAsStatic(){
+        this.response.SetAsStatic();
+        return this;
+      }
+
+    @Override
     public Response build() {
         return this.response;
     }

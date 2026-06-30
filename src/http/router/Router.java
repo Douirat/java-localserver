@@ -254,6 +254,7 @@ public class Router implements Routing {
                     .setHeader(
                             "Content-Type",
                             mime)
+                    .setAsStatic()
                     .setBody(body)
                     .build();
 

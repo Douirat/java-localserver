@@ -1,9 +1,6 @@
 package http.server;
 
-import java.nio.file.Path;
-
 import http.handler.Handler;
-
 public class ServerBuilder implements ServingBuilder {
     private Server server;
 
@@ -17,11 +14,11 @@ public class ServerBuilder implements ServingBuilder {
         return this;
     }
 
-    @Override
-    public ServingBuilder staticRoutes(String dir){
-        this.server.setStaticDirectory(dir);
-        return this;
-    }
+    // @Override
+    // public ServingBuilder staticRoutes(String dir){
+    //     this.server.setStaticDirectory(dir);
+    //     return this;
+    // }
 
     // add routes to the router following the building mechanism to ease the API building for the user:
     @Override

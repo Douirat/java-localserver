@@ -118,18 +118,6 @@ public class Main {
                 response.setBody(map);
                 return response;
             })
-
-            .serveStatic("/static", () -> {
-                try {
-                    return Router.serveFile(Path.of(request.getPath()));
-                } catch (Exception e) {
-                    return new ResponseBuilder()
-                    .setStatus(401)
-                    .build();
-                }
-                
-            })
-
             .build();
 
         server.start();
