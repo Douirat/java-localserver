@@ -162,8 +162,14 @@ public class Router implements Routing {
     public Response serve(Request request) {
 
         if (request.getMethod().equals("GET")) {
-
+            System.out.println("Request path: " + request.getPath());
             String prefix = "/" + this.staticDirectory + "/";
+
+            System.out.println("staticDirectory = [" + this.staticDirectory + "]");
+            System.out.println("prefix          = [" + prefix + "]");
+            System.out.println("requestPath     = [" + request.getPath() + "]");
+            System.out.println(
+                    request.getPath().startsWith(prefix));
 
             if (request.getPath().startsWith(prefix)) {
                 try {
@@ -172,6 +178,8 @@ public class Router implements Routing {
 
                     Path requested = Paths.get(this.staticDirectory)
                             .resolve(relative);
+
+                    System.out.println("serving static file: " + requested.toAbsolutePath());
 
                     return this.serveFile(requested);
 
@@ -187,7 +195,7 @@ public class Router implements Routing {
         // if no handler found, return 404 response:
         if (handler == null) {
             Response response = new ResponseBuilder()
-                    .setStatus(04)
+                    .setStatus(404)
                     .setHeader("Content-Type", "text/plain")
                     .setBody("Not Found")
                     .build();
@@ -205,8 +213,17 @@ public class Router implements Routing {
                 .toAbsolutePath()
                 .normalize();
 
+        System.out.println("requested = " + requested);
+        System.out.println("path      = " + path);
+        System.out.println("staticDir = " + this.staticDirectory);
+        System.out.println("exists    = " + Files.exists(path));
+
         // Prevent escaping the static directory.
-        if (!path.startsWith(this.staticDirectory)) {
+        Path staticRoot = Paths.get(this.staticDirectory)
+                .toAbsolutePath()
+                .normalize();
+
+        if (!path.startsWith(staticRoot)) {
             return new ResponseBuilder()
                     .setStatus(403)
                     .build();

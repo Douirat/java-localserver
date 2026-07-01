@@ -1,10 +1,11 @@
 package http.response;
 
 import http.response.cookie.Cookie;
+import http.response.responseBody.Body;
 
 public class ResponseBuilder implements RespondingBuilder<ResponseBuilder> {
     private final Response response;
-    
+
     public ResponseBuilder() {
         this.response = new Response();
     }
@@ -34,16 +35,22 @@ public class ResponseBuilder implements RespondingBuilder<ResponseBuilder> {
     }
 
     @Override
+    public ResponseBuilder setBody(Body body) {
+        response.setBody(body);
+        return this;
+    }
+
+    @Override
     public ResponseBuilder setBody(Object body) {
         response.setBody(body);
         return this;
     }
 
     @Override
-      public ResponseBuilder setAsStatic(){
+    public ResponseBuilder setAsStatic() {
         this.response.SetAsStatic();
         return this;
-      }
+    }
 
     @Override
     public Response build() {

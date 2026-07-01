@@ -8,8 +8,7 @@ import http.response.responseBody.FileBody;
 import http.response.responseBody.MemoryBody;
 import http.response.status.HttpStatusMessages;
 
-// TODO: CHANGING THE WAY THE BODY IS RETURNED TO AVOID ALWAYS HAVING THE BODY RETURENED IN THE MEMORY FILE
-
+// TODO: CHANGING THE WAY THE BODY IS RETURNED TO AVOID ALWAYS HAVING THE BODY RETURENED IN THE MEMORY FILE.
 
 public class Response implements Responding {
     private String version; // which HTTP rules apply to parsing the response;
@@ -21,37 +20,45 @@ public class Response implements Responding {
 
     private Body body;
 
-
-    public Response(){}
+    public Response() {
+    }
 
     // Setters:
-    public void setVersion(String version){this.version = version;}
+    public void setVersion(String version) {
+        this.version = version;
+    }
 
-   // Option A: derive reason automatically when status is set
+    // Option A: derive reason automatically when status is set:
     public void setStatus(int status) {
         this.status = status;
         this.statusReason = HttpStatusMessages.getMessage(status);
     }
 
-    public void setHeader(String key, String value){
+    public void setHeader(String key, String value) {
         this.headers.put(key, value);
     }
 
-    public void addCookie(Cookie cookie){
+    public void addCookie(Cookie cookie) {
         this.cookies.add(cookie);
     }
 
-    public void SetAsStatic(){
+    public void SetAsStatic() {
         this.isStaticResponse = true;
     }
 
-    public void setBody(Object data){
+    @Override
+    public void setBody(Object data) {
         MemoryBody body = new MemoryBody();
         body.setData(data);
         this.body = body;
     }
 
-    public void setFileChannel(FileChannel channel){
+    @Override
+    public void setBody(Body body) {
+        this.body = body;
+    }
+
+    public void setFileChannel(FileChannel channel) {
         FileBody data = new FileBody();
         data.setChannel(channel);
         this.SetAsStatic();
@@ -59,28 +66,47 @@ public class Response implements Responding {
     }
 
     // Getters:
-    public String getVersion(){return this.version;}
+    @Override
+    public String getVersion() {
+        return this.version;
+    }
 
-    public int getStatus(){return this.status;}
+    @Override
+    public int getStatus() {
+        return this.status;
+    }
 
-    public String getStatusReason(){return this.statusReason;}
+    @Override
+    public String getStatusReason() {
+        return this.statusReason;
+    }
 
-    public String getHeader(String key){return this.headers.get(key);}
+    @Override
+    public String getHeader(String key) {
+        return this.headers.get(key);
+    }
 
-   public List<Cookie> getCookies(){return Collections.unmodifiableList(cookies);}
-   
-   public boolean isStatic(){
-    return this.isStaticResponse;
-   }
+    @Override
+    public List<Cookie> getCookies() {
+        return Collections.unmodifiableList(cookies);
+    }
 
+    @Override
+    public boolean isStatic() {
+        return this.isStaticResponse;
+    }
+
+    @Override
     public Map<String, String> getHeaders() {
         return Collections.unmodifiableMap(headers);
     }
 
-    public Object getBody(){
-        MemoryBody object =(MemoryBody) this.body;
-        return object.getData();
+    @Override
+    public Body getBody() {
+        return this.body;
     }
+
+  
 
     // toString method for debugging:
     @Override
@@ -95,21 +121,21 @@ public class Response implements Responding {
         sb.append("Headers:\n");
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             sb.append("  ")
-            .append(entry.getKey())
-            .append(": ")
-            .append(entry.getValue())
-            .append("\n");
+                    .append(entry.getKey())
+                    .append(": ")
+                    .append(entry.getValue())
+                    .append("\n");
         }
 
         sb.append("Cookies:\n");
         for (Cookie cookie : cookies) {
             sb.append("  ")
-            .append(cookie.getName())
-            .append(": ")
-            .append(cookie.getValue())
-            .append("\n");
+                    .append(cookie.getName())
+                    .append(": ")
+                    .append(cookie.getValue())
+                    .append("\n");
         }
-        
+
         sb.append("Body:\n");
         if (body != null) {
             sb.append(body.toString());

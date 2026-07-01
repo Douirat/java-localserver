@@ -12,6 +12,7 @@ import http.connecting.state.ConnectionState;
 import http.connecting.state.RequestState;
 import http.router.*;
 import http.response.*;
+import http.response.responseBody.Body;
 import http.response.responseBody.FileBody;
 
 public class Server implements Serving {
@@ -99,16 +100,26 @@ public class Server implements Serving {
             if (connection.getRequestState() == RequestState.COMPLETE) {
               Response response = this.router.serve(connection.getRequest());
               if (response != null) {
+                
+                System.out.println("The returned response: " + response.toString());
+
+
+
                 connection.setResponse(response);
                 if (response.isStatic()) {
                   connection.setAsStaticResponse();
 
-                  FileBody body = (FileBody) response.getBody();
-                  FileChannel fc = body.getChannel();
+                  Body body = response.getBody();
+                  FileChannel fc = ((FileBody) body).getChannel();
 
                   connection.setFileChannel(fc);
                   connection.setFileSize(fc.size());
                   connection.setFilePosition(0);
+
+                  System.out.println("File size: " + fc.size());
+
+
+                  
                   String headers = connection.prepareHeaders((int) fc.size());
                   byte[] headersBytes = headers.getBytes();
                   connection.loadBuffer(headersBytes);

@@ -2,12 +2,8 @@ import http.server.ServerBuilder;
 import http.server.Server;
 import http.request.Request;
 import http.response.Response;
-import http.response.ResponseBuilder;
 import model.User;
 import http.response.cookie.*;
-import http.router.Router;
-
-import java.nio.file.Path;
 import java.util.*;
 
 public class Main {
@@ -112,6 +108,10 @@ public class Main {
                     "postId", postId,
                     "userId", userId
                 );
+
+                
+
+
                 Response response = new Response();
                 response.setStatus(200);
                 response.setHeader("Content-Type", "application/json");
