@@ -19,7 +19,6 @@ public class Server implements Serving {
 
   private int port;
   private Routing router;
- 
 
   public Server() {
     this.port = 8080;
@@ -100,15 +99,15 @@ public class Server implements Serving {
             if (connection.getRequestState() == RequestState.COMPLETE) {
               Response response = this.router.serve(connection.getRequest());
               if (response != null) {
-                
+
                 System.out.println("The returned response: " + response.toString());
 
-
+                System.out.println("request debugging: " + connection.getRequest().toString());
+                response.setVersion(connection.getRequest().getVersion());
 
                 connection.setResponse(response);
                 if (response.isStatic()) {
                   connection.setAsStaticResponse();
-
                   Body body = response.getBody();
                   FileChannel fc = ((FileBody) body).getChannel();
 
@@ -118,9 +117,12 @@ public class Server implements Serving {
 
                   System.out.println("File size: " + fc.size());
 
-
-                  
                   String headers = connection.prepareHeaders((int) fc.size());
+
+                  System.out.println("==== HEADERS ====");
+                  System.out.print(headers);
+                  System.out.println("=================");
+
                   byte[] headersBytes = headers.getBytes();
                   connection.loadBuffer(headersBytes);
 
@@ -153,27 +155,27 @@ public class Server implements Serving {
                   buffer.clear();
                 }
 
-                } else if (connection.getConnectionState() == ConnectionState.WRITING_BODY) {
-                  long sent = connection.getFileChannel().transferTo(
-                      connection.getFilePosition(),
-                      connection.getFileSize()
-                          - connection.getFilePosition(),
-                      channel);
+              } else if (connection.getConnectionState() == ConnectionState.WRITING_BODY) {
+                long sent = connection.getFileChannel().transferTo(
+                    connection.getFilePosition(),
+                    connection.getFileSize()
+                        - connection.getFilePosition(),
+                    channel);
 
-                  if (sent > 0) {
-                    connection.setFilePosition(connection.getFilePosition() + sent);
-                  }
+                if (sent > 0) {
+                  connection.setFilePosition(connection.getFilePosition() + sent);
+                }
 
-                  if (connection.getFilePosition() >= connection.getFileSize()) {
+                if (connection.getFilePosition() >= connection.getFileSize()) {
 
-                    connection.getFileChannel().close();
+                  connection.getFileChannel().close();
 
-                    connection.setConnectionState(
-                        ConnectionState.CLOSED);
+                  connection.setConnectionState(
+                      ConnectionState.CLOSED);
 
-                    channel.close();
-                    key.cancel();
-                  }
+                  channel.close();
+                  key.cancel();
+                }
               }
 
             } else {
@@ -213,7 +215,6 @@ public class Server implements Serving {
       this.port = port;
     }
   }
-
 
   /**
    * Creating my getters.

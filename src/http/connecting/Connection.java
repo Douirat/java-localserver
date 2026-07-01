@@ -155,10 +155,14 @@ public class Connection implements Connecting {
     }
 
     public void loadBuffer(byte[] bytes) {
+        buffer.clear();
+
         if (bytes.length > buffer.remaining()) {
             throw new IllegalStateException("Not enough space in buffer");
         }
+
         buffer.put(bytes);
+        buffer.flip();
     }
 
     /*
