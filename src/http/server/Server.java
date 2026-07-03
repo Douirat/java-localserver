@@ -3,9 +3,9 @@ package http.server;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import http.connecting.Connection;
 import http.connecting.state.ConnectionState;
@@ -17,11 +17,11 @@ import http.response.responseBody.FileBody;
 
 public class Server implements Serving {
 
-  private int port;
+ private Set<Integer> ports;
   private Routing router;
 
   public Server() {
-    this.port = 8080;
+     this.ports = new HashSet<>();
     this.router = new Router(); // we will set the router later when we implement it.
   }
 

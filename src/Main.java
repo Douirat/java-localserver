@@ -11,7 +11,7 @@ public class Main {
 
         Server server = new ServerBuilder()
             .port(8080)
-
+            
             .get("/api/cookies", (Request request) -> {
                 Map<String, String> cookies = request.getCookies();
                 Response response = new Response();
@@ -108,9 +108,6 @@ public class Main {
                     "postId", postId,
                     "userId", userId
                 );
-
-                
-
 
                 Response response = new Response();
                 response.setStatus(200);
