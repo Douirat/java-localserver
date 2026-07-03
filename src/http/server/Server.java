@@ -3,6 +3,7 @@ package http.server;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -17,16 +18,19 @@ import http.response.responseBody.FileBody;
 
 public class Server implements Serving {
 
- private Set<Integer> ports;
+  private Set<Integer> ports;
   private Routing router;
 
   public Server() {
      this.ports = new HashSet<>();
     this.router = new Router(); // we will set the router later when we implement it.
+
+       // default port if no configuration is provided
+    this.ports.add(8080);
   }
 
   public void start() {
-    try (var serverSocketChannel = ServerSocketChannel.open(); var selector = Selector.open()) {
+    try (var selector = Selector.open()) {
       /**
        * @ var selector = Selector.open()
        * Java:
@@ -40,8 +44,19 @@ public class Server implements Serving {
        * return “ready sets”
        */
 
-      serverSocketChannel.configureBlocking(false);
-      serverSocketChannel.bind(new InetSocketAddress(this.port));
+
+
+        // Create one listening socket per port
+        for (int port : ports) {
+            ServerSocketChannel server = ServerSocketChannel.open();
+
+            server.configureBlocking(false);
+            server.bind(new InetSocketAddress(port));
+            server.register(selector, SelectionKey.OP_ACCEPT);
+          
+
+            System.out.println("Listening on port: " + port);
+        }
       /**
        * This is where the OS socket is created and attached to a port.
        * 
