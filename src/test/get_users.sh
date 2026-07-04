@@ -1,5 +1,5 @@
 
-URL="http://localhost:8080/api/users"
+URL="http://localhost:8000/api/users"
 
 echo "Testing GET $URL"
 
