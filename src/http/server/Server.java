@@ -80,55 +80,65 @@ public class Server implements Serving {
             Connection connection = (Connection) key.attachment();
             SocketChannel channel = connection.getChannel();
 
-            int bytes = channel.read(connection.getBuffer());
+            try {
+              int bytes = channel.read(connection.getBuffer());
 
-            if (bytes == -1) {
-              channel.close();
-              key.cancel();
-              continue;
-            }
+              if (bytes == -1) {
+                channel.close();
+                key.cancel();
+                continue;
+              }
 
-            connection.ParseRequest();
+              connection.ParseRequest();
 
-            if (connection.getRequestState() == RequestState.COMPLETE) {
-              Response response = this.router.serve(connection.getRequest());
-              if (response != null) {
+              if (connection.getRequestState() == RequestState.COMPLETE) {
+                Response response = this.router.serve(connection.getRequest());
+                if (response != null) {
 
-                System.out.println("The returned response: " + response.toString());
+                  System.out.println("The returned response: " + response.toString());
 
-                System.out.println("request debugging: " + connection.getRequest().toString());
-                response.setVersion(connection.getRequest().getVersion());
+                  System.out.println("request debugging: " + connection.getRequest().toString());
+                  response.setVersion(connection.getRequest().getVersion());
 
-                connection.setResponse(response);
-                if (response.isStatic()) {
-                  connection.setAsStaticResponse();
-                  Body body = response.getBody();
-                  FileChannel fc = ((FileBody) body).getChannel();
+                  connection.setResponse(response);
+                  if (response.isStatic()) {
+                    connection.setAsStaticResponse();
+                    Body body = response.getBody();
+                    FileChannel fc = ((FileBody) body).getChannel();
 
-                  connection.setFileChannel(fc);
-                  connection.setFileSize(fc.size());
-                  connection.setFilePosition(0);
+                    connection.setFileChannel(fc);
+                    connection.setFileSize(fc.size());
+                    connection.setFilePosition(0);
 
-                  System.out.println("File size: " + fc.size());
+                    System.out.println("File size: " + fc.size());
 
-                  String headers = connection.prepareHeaders((int) fc.size());
+                    String headers = connection.prepareHeaders((int) fc.size());
 
-                  System.out.println("==== HEADERS ====");
-                  System.out.print(headers);
-                  System.out.println("=================");
+                    System.out.println("==== HEADERS ====");
+                    System.out.print(headers);
+                    System.out.println("=================");
 
-                  byte[] headersBytes = headers.getBytes();
-                  connection.loadBuffer(headersBytes);
+                    byte[] headersBytes = headers.getBytes();
+                    connection.loadBuffer(headersBytes);
+
+                    connection.setConnectionState(ConnectionState.WRITING_HEADERS);
+
+                  } else {
+                    connection.prepareResponse();
+                  }
 
                   connection.setConnectionState(ConnectionState.WRITING_HEADERS);
-
-                } else {
-                  connection.prepareResponse();
+                  key.interestOps(SelectionKey.OP_WRITE);
                 }
-
-                connection.setConnectionState(ConnectionState.WRITING_HEADERS);
-                key.interestOps(SelectionKey.OP_WRITE);
               }
+            } catch (Exception e) {
+              System.err.println("Error handling client: " + e.getMessage());
+              try {
+                channel.close();
+              } catch (Exception ex) {
+                System.err.println("Error closing channel: " + ex.getMessage());
+              }
+              key.cancel();
             }
             continue; // ← don't fall through to isWritable() this iteration
           }
