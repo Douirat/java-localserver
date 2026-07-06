@@ -58,6 +58,47 @@ public class ServerBuilder implements ServingBuilder {
         return this;
     }
 
+    // Configuration methods for ConfigLoader
+    public ServingBuilder setPort(int port) {
+        this.server.setPort(port);
+        return this;
+    }
+
+    public ServingBuilder setRoot(String root) {
+        this.server.getRouter().setStaticDirectory(root);
+        return this;
+    }
+
+    public ServingBuilder setDefaultFile(String defaultFile) {
+        this.server.getRouter().setDefaultFile(defaultFile);
+        return this;
+    }
+
+    public ServingBuilder setMaxBodySize(int maxSize) {
+        this.server.getRouter().setMaxBodySize(maxSize);
+        return this;
+    }
+
+    public ServingBuilder setDirectoryListing(boolean enabled) {
+        this.server.getRouter().setDirectoryListing(enabled);
+        return this;
+    }
+
+    public ServingBuilder setErrorPage(String statusCode, String path) {
+        this.server.getRouter().setErrorPage(statusCode, path);
+        return this;
+    }
+
+    public ServingBuilder addCgiExtension(String extension, String interpreter) {
+        this.server.getRouter().addCgiExtension(extension, interpreter);
+        return this;
+    }
+
+    public ServingBuilder addRedirect(String path, String redirect, int statusCode) {
+        this.server.getRouter().addRedirect(path, redirect, statusCode);
+        return this;
+    }
+
     @Override
     public Server build(){
         return this.server;

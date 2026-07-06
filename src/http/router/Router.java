@@ -1,6 +1,5 @@
 package http.router;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -22,6 +21,23 @@ public class Router implements Routing {
     Map<String, Map<String, Handler>> dynamicRoutes; // for routes with path variables, e.g., /api/users/{id}>>
 
     private String staticDirectory;
+    private String defaultFile = "index.html";
+    private int maxBodySize = 10485760; // 10MB default
+    private boolean directoryListing = false;
+    private Map<String, String> errorPages = new HashMap<>();
+    private Map<String, String> cgiExtensions = new HashMap<>();
+    private Map<String, RedirectConfig> redirects = new HashMap<>();
+
+    // Inner class for redirect configuration
+    private static class RedirectConfig {
+        String targetPath;
+        int statusCode;
+
+        RedirectConfig(String targetPath, int statusCode) {
+            this.targetPath = targetPath;
+            this.statusCode = statusCode;
+        }
+    }
 
     private static final Map<String, String> MIME_TYPES = Map.ofEntries(
             // HTML / Text
@@ -361,6 +377,55 @@ public class Router implements Routing {
     @Override
     public String getStaticDirectory() {
         return this.staticDirectory;
+    }
+
+    // Configuration methods for ConfigLoader
+    public void setDefaultFile(String defaultFile) {
+        this.defaultFile = defaultFile;
+    }
+
+    public void setMaxBodySize(int maxSize) {
+        this.maxBodySize = maxSize;
+    }
+
+    public void setDirectoryListing(boolean enabled) {
+        this.directoryListing = enabled;
+    }
+
+    public void setErrorPage(String statusCode, String path) {
+        this.errorPages.put(statusCode, path);
+    }
+
+    public void addCgiExtension(String extension, String interpreter) {
+        this.cgiExtensions.put(extension, interpreter);
+    }
+
+    public void addRedirect(String path, String redirect, int statusCode) {
+        this.redirects.put(path, new RedirectConfig(redirect, statusCode));
+    }
+
+    public String getDefaultFile() {
+        return defaultFile;
+    }
+
+    public int getMaxBodySize() {
+        return maxBodySize;
+    }
+
+    public boolean isDirectoryListing() {
+        return directoryListing;
+    }
+
+    public Map<String, String> getErrorPages() {
+        return errorPages;
+    }
+
+    public Map<String, String> getCgiExtensions() {
+        return cgiExtensions;
+    }
+
+    public Map<String, RedirectConfig> getRedirects() {
+        return redirects;
     }
 
     /**
