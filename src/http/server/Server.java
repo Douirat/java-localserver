@@ -3,9 +3,7 @@ package http.server;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import http.connecting.Connection;
@@ -57,27 +55,8 @@ public class Server implements Serving {
 
             System.out.println("Listening on port: " + port);
         }
-      /**
-       * This is where the OS socket is created and attached to a port.
-       * 
-       * Internally:
-       * 
-       * A TCP socket is created
-       * It is bound to:
-       * IP: 0.0.0.0 (usually all interfaces)
-       * Port: 8080 (your value)
-       * What this means physically
-       * The OS now knows:
-       * “Any incoming TCP connection targeting port 8080 should go to this socket.”
-       */
-      serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-      /**
-       * “Wake me up when the OS says this listening socket can accept a connection
-       * without blocking.”
-       */
-
-      System.out.println("Server is listening on port: " + this.port);
+        System.out.println("Server is listening on ports: " + ports);
 
       while (true) {
 
@@ -220,23 +199,30 @@ public class Server implements Serving {
   }
 
   /**
-   * Creating my setters.
+   * Add a port to the server.
    */
   @Override
   public void setPort(int port) {
     if (port < 1 || port > 65535) {
-      this.port = 8080;
-    } else {
-      this.port = port;
+      throw new IllegalArgumentException("Port must be between 1 and 65535");
     }
+    this.ports.add(port);
   }
 
   /**
-   * Creating my getters.
+   * Get the set of ports the server is listening on.
    */
   @Override
   public int getPort() {
-    return this.port;
+    // Return the first port for backward compatibility
+    return this.ports.isEmpty() ? 8080 : this.ports.iterator().next();
+  }
+
+  /**
+   * Get all ports the server is listening on.
+   */
+  public Set<Integer> getPorts() {
+    return this.ports;
   }
 
   @Override

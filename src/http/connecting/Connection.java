@@ -253,6 +253,17 @@ public class Connection implements Connecting {
                     throw new RuntimeException("Invalid HTTP header: ");
                 }
                 this.request.addHeader(header[0], header[1]);
+
+                // Parse Cookie header if present
+                if (header[0].equalsIgnoreCase("Cookie")) {
+                    String[] cookies = header[1].split(";");
+                    for (String cookie : cookies) {
+                        String[] keyValue = cookie.trim().split("=", 2);
+                        if (keyValue.length == 2) {
+                            this.request.addCookie(keyValue[0].trim(), keyValue[1].trim());
+                        }
+                    }
+                }
             }
         }
 
