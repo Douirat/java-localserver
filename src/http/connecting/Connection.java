@@ -30,6 +30,7 @@ public class Connection implements Connecting {
 
     private boolean bufferFlipped = false;
     private boolean isStatic = false;
+    private int maxBodySize = 10485760; // 10MB default
 
     // Keep track of the connection state.
     private ConnectionState state = ConnectionState.READING;
@@ -154,6 +155,14 @@ public class Connection implements Connecting {
         this.filePosition = position;
     }
 
+    public void setMaxBodySize(int maxSize) {
+        this.maxBodySize = maxSize;
+    }
+
+    public int getMaxBodySize() {
+        return this.maxBodySize;
+    }
+
     public void loadBuffer(byte[] bytes) {
         buffer.clear();
 
@@ -270,8 +279,12 @@ public class Connection implements Connecting {
         // extract the length of the body if exists:
         String contentLength = this.request.getHeaders().get("Content-Length");
         if (contentLength != null) {
+            int length = Integer.parseInt(contentLength);
+            if (length > this.maxBodySize) {
+                throw new RuntimeException("413 Payload Too Large: Content-Length " + length + " exceeds maximum " + this.maxBodySize);
+            }
             this.requestState = RequestState.BODY;
-            return Integer.parseInt(contentLength);
+            return length;
         }
         return 0;
     }
