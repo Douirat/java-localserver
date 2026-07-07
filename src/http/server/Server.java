@@ -1,8 +1,10 @@
 package http.server;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
+import java.net.ServerSocket;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -27,6 +29,18 @@ public class Server implements Serving {
     this.ports.add(8080);
   }
 
+  /**
+   * Check if a port is available (not in use).
+   */
+  private boolean isPortAvailable(int port) {
+    try (ServerSocket socket = new ServerSocket(port)) {
+      socket.setReuseAddress(true);
+      return true;
+    } catch (IOException e) {
+      return false;
+    }
+  }
+
   public void start() {
     try (var selector = Selector.open()) {
       /**
@@ -46,12 +60,18 @@ public class Server implements Serving {
 
         // Create one listening socket per port
         for (int port : ports) {
+            // Check for port conflict before binding
+            if (!isPortAvailable(port)) {
+                System.err.println("Port " + port + " is already in use. Skipping...");
+                continue;
+            }
+
             ServerSocketChannel server = ServerSocketChannel.open();
 
             server.configureBlocking(false);
             server.bind(new InetSocketAddress(port));
             server.register(selector, SelectionKey.OP_ACCEPT);
-          
+
 
             System.out.println("Listening on port: " + port);
         }
