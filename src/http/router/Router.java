@@ -1,6 +1,7 @@
 package http.router;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -261,8 +262,29 @@ public class Router implements Routing {
                     .build();
         }
 
-        // Not a regular file (directory, device, etc.).
+        // Not a regular file - check if it's a directory
         if (!Files.isRegularFile(path)) {
+            if (Files.isDirectory(path)) {
+                // Try to serve default file (index.html)
+                Path defaultFile = path.resolve(this.defaultFile);
+                if (Files.exists(defaultFile) && Files.isRegularFile(defaultFile) && Files.isReadable(defaultFile)) {
+                    return serveFile(defaultFile);
+                }
+                
+                // If default file not found and directory listing is enabled, generate listing
+                if (this.directoryListing) {
+                    return generateDirectoryListing(path);
+                }
+                
+                // Directory listing disabled and no default file
+                return new ResponseBuilder()
+                        .setStatus(403)
+                        .setHeader("Content-Type", "text/plain")
+                        .setBody("Directory listing disabled")
+                        .build();
+            }
+            
+            // Not a directory and not a regular file
             return new ResponseBuilder()
                     .setStatus(404)
                     .build();
@@ -465,6 +487,64 @@ public class Router implements Routing {
                 "application/octet-stream");
 
         return mime;
+    }
+
+    /**
+     * Generate an HTML directory listing for the given path.
+     */
+    private Response generateDirectoryListing(Path directoryPath) {
+        StringBuilder html = new StringBuilder();
+        html.append("<!DOCTYPE html>\n");
+        html.append("<html>\n<head>\n");
+        html.append("<title>Directory Listing: ").append(directoryPath.getFileName()).append("</title>\n");
+        html.append("<style>\n");
+        html.append("body { font-family: Arial, sans-serif; margin: 40px; }\n");
+        html.append("h1 { color: #333; }\n");
+        html.append("table { border-collapse: collapse; width: 100%; }\n");
+        html.append("th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }\n");
+        html.append("th { background-color: #f2f2f2; }\n");
+        html.append("a { color: #0066cc; text-decoration: none; }\n");
+        html.append("a:hover { text-decoration: underline; }\n");
+        html.append("</style>\n");
+        html.append("</head>\n<body>\n");
+        html.append("<h1>Directory Listing: ").append(directoryPath.getFileName()).append("</h1>\n");
+        html.append("<table>\n");
+        html.append("<tr><th>Name</th><th>Size</th><th>Last Modified</th></tr>\n");
+
+        // Add parent directory link if not at root
+        if (!directoryPath.equals(Paths.get(this.staticDirectory).toAbsolutePath().normalize())) {
+            html.append("<tr><td><a href=\"../\">../</a></td><td>-</td><td>-</td></tr>\n");
+        }
+
+        try {
+            Files.list(directoryPath).forEach(path -> {
+                try {
+                    String name = path.getFileName().toString();
+                    String size = Files.isDirectory(path) ? "-" : String.valueOf(Files.size(path));
+                    String modified = Files.getLastModifiedTime(path).toString();
+                    String href = Files.isDirectory(path) ? name + "/" : name;
+
+                    html.append("<tr>");
+                    html.append("<td><a href=\"").append(href).append("\">").append(name).append("</a></td>");
+                    html.append("<td>").append(size).append("</td>");
+                    html.append("<td>").append(modified).append("</td>");
+                    html.append("</tr>\n");
+                } catch (IOException e) {
+                    html.append("<tr><td>").append(path.getFileName()).append("</td><td>-</td><td>Error</td></tr>\n");
+                }
+            });
+        } catch (IOException e) {
+            html.append("<tr><td colspan=\"3\">Error reading directory</td></tr>\n");
+        }
+
+        html.append("</table>\n");
+        html.append("</body>\n</html>");
+
+        return new ResponseBuilder()
+                .setStatus(200)
+                .setHeader("Content-Type", "text/html")
+                .setBody(html.toString().getBytes(StandardCharsets.UTF_8))
+                .build();
     }
 
 }
