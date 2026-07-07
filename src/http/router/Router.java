@@ -29,6 +29,7 @@ public class Router implements Routing {
     private Map<String, String> cgiExtensions = new HashMap<>();
     private Map<String, RedirectConfig> redirects = new HashMap<>();
     private Map<String, String> virtualHosts = new HashMap<>(); // hostname -> static directory
+    private Map<String, Set<String>> routeMethodRestrictions = new HashMap<>(); // path -> allowed methods
 
     // Inner class for redirect configuration
     private static class RedirectConfig {
@@ -185,6 +186,18 @@ public class Router implements Routing {
             return new ResponseBuilder()
                     .setStatus(redirect.statusCode)
                     .setHeader("Location", redirect.targetPath)
+                    .build();
+        }
+
+        // Check method restrictions
+        if (!isMethodAllowed(request.getPath(), request.getMethod())) {
+            Set<String> allowedMethods = getAllowedMethods(request.getPath());
+            String allowHeader = String.join(", ", allowedMethods);
+            return new ResponseBuilder()
+                    .setStatus(405)
+                    .setHeader("Allow", allowHeader)
+                    .setHeader("Content-Type", "text/plain")
+                    .setBody("Method Not Allowed")
                     .build();
         }
 
@@ -479,6 +492,23 @@ public class Router implements Routing {
 
     public Map<String, String> getVirtualHosts() {
         return virtualHosts;
+    }
+
+    // Route method restrictions
+    public void addAllowedMethod(String path, String method) {
+        routeMethodRestrictions.computeIfAbsent(path, k -> new HashSet<>()).add(method.toUpperCase());
+    }
+
+    public Set<String> getAllowedMethods(String path) {
+        return routeMethodRestrictions.get(path);
+    }
+
+    public boolean isMethodAllowed(String path, String method) {
+        Set<String> allowedMethods = routeMethodRestrictions.get(path);
+        if (allowedMethods == null || allowedMethods.isEmpty()) {
+            return true; // No restrictions, all methods allowed
+        }
+        return allowedMethods.contains(method.toUpperCase());
     }
 
     /**
