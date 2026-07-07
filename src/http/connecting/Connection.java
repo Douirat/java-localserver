@@ -32,6 +32,10 @@ public class Connection implements Connecting {
     private boolean isStatic = false;
     private int maxBodySize = 10485760; // 10MB default
 
+    // Connection timeout tracking
+    private long lastActivityTime;
+    private final long connectionTimeoutMillis = 300000; // 5 minutes default
+
     // Keep track of the connection state.
     private ConnectionState state = ConnectionState.READING;
 
@@ -56,6 +60,7 @@ public class Connection implements Connecting {
 
     public Connection(SocketChannel channel) {
         this.channel = channel;
+        this.lastActivityTime = System.currentTimeMillis();
     }
 
     // getters and setters:
@@ -161,6 +166,22 @@ public class Connection implements Connecting {
 
     public int getMaxBodySize() {
         return this.maxBodySize;
+    }
+
+    public void updateLastActivity() {
+        this.lastActivityTime = System.currentTimeMillis();
+    }
+
+    public boolean isTimedOut() {
+        return System.currentTimeMillis() - lastActivityTime > connectionTimeoutMillis;
+    }
+
+    public long getLastActivityTime() {
+        return lastActivityTime;
+    }
+
+    public long getConnectionTimeoutMillis() {
+        return connectionTimeoutMillis;
     }
 
     public void loadBuffer(byte[] bytes) {

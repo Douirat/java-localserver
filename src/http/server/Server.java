@@ -81,6 +81,14 @@ public class Server implements Serving {
             SocketChannel channel = connection.getChannel();
 
             try {
+              // Check for timeout
+              if (connection.isTimedOut()) {
+                System.err.println("Connection timed out, closing");
+                channel.close();
+                key.cancel();
+                continue;
+              }
+
               int bytes = channel.read(connection.getBuffer());
 
               if (bytes == -1) {
@@ -88,6 +96,9 @@ public class Server implements Serving {
                 key.cancel();
                 continue;
               }
+
+              // Update last activity time on read
+              connection.updateLastActivity();
 
               connection.ParseRequest();
 
@@ -148,39 +159,52 @@ public class Server implements Serving {
             Connection connection = (Connection) key.attachment();
             SocketChannel channel = connection.getChannel();
 
-            if (connection.isStaticResponse()) {
-
-              if (connection.getConnectionState() == ConnectionState.WRITING_HEADERS) {
-                ByteBuffer buffer = connection.getBuffer();
-                channel.write(buffer);
-
-                if (!buffer.hasRemaining()) {
-                  connection.setConnectionState(ConnectionState.WRITING_BODY);
-                  buffer.clear();
-                }
-
-              } else if (connection.getConnectionState() == ConnectionState.WRITING_BODY) {
-                long sent = connection.getFileChannel().transferTo(
-                    connection.getFilePosition(),
-                    connection.getFileSize()
-                        - connection.getFilePosition(),
-                    channel);
-
-                if (sent > 0) {
-                  connection.setFilePosition(connection.getFilePosition() + sent);
-                }
-
-                if (connection.getFilePosition() >= connection.getFileSize()) {
-
-                  connection.getFileChannel().close();
-
-                  connection.setConnectionState(
-                      ConnectionState.CLOSED);
-
-                  channel.close();
-                  key.cancel();
-                }
+            try {
+              // Check for timeout
+              if (connection.isTimedOut()) {
+                System.err.println("Connection timed out during write, closing");
+                channel.close();
+                key.cancel();
+                continue;
               }
+
+              if (connection.isStaticResponse()) {
+
+                if (connection.getConnectionState() == ConnectionState.WRITING_HEADERS) {
+                  ByteBuffer buffer = connection.getBuffer();
+                  channel.write(buffer);
+
+                  if (!buffer.hasRemaining()) {
+                    connection.setConnectionState(ConnectionState.WRITING_BODY);
+                    buffer.clear();
+                  }
+
+                  // Update activity on write
+                  connection.updateLastActivity();
+
+                } else if (connection.getConnectionState() == ConnectionState.WRITING_BODY) {
+                  long sent = connection.getFileChannel().transferTo(
+                      connection.getFilePosition(),
+                      connection.getFileSize()
+                          - connection.getFilePosition(),
+                      channel);
+
+                  if (sent > 0) {
+                    connection.setFilePosition(connection.getFilePosition() + sent);
+                    connection.updateLastActivity();
+                  }
+
+                  if (connection.getFilePosition() >= connection.getFileSize()) {
+
+                    connection.getFileChannel().close();
+
+                    connection.setConnectionState(
+                        ConnectionState.CLOSED);
+
+                    channel.close();
+                    key.cancel();
+                  }
+                }
 
             } else {
 
@@ -194,6 +218,18 @@ public class Server implements Serving {
                 key.interestOps(SelectionKey.OP_READ);
               }
 
+              // Update activity on write
+              connection.updateLastActivity();
+            }
+
+            } catch (Exception e) {
+              System.err.println("Error writing to client: " + e.getMessage());
+              try {
+                channel.close();
+              } catch (Exception ex) {
+                System.err.println("Error closing channel: " + ex.getMessage());
+              }
+              key.cancel();
             }
 
           }
