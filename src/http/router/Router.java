@@ -177,6 +177,15 @@ public class Router implements Routing {
     @Override
     public Response serve(Request request) {
 
+        // Check for redirects first
+        RedirectConfig redirect = this.redirects.get(request.getPath());
+        if (redirect != null) {
+            return new ResponseBuilder()
+                    .setStatus(redirect.statusCode)
+                    .setHeader("Location", redirect.targetPath)
+                    .build();
+        }
+
         if (request.getMethod().equals("GET")) {
             System.out.println("Request path: " + request.getPath());
             String prefix = "/" + this.staticDirectory + "/";
