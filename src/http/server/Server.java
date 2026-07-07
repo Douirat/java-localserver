@@ -85,7 +85,11 @@ public class Server implements Serving {
           continue;
         }
 
-        for (var key : selector.selectedKeys()) {
+        var selectedKeys = selector.selectedKeys();
+        var iterator = selectedKeys.iterator();
+
+        while (iterator.hasNext()) {
+          var key = iterator.next();
 
           if (key.isAcceptable()) {
             ServerSocketChannel channel = (ServerSocketChannel) key.channel();
@@ -93,7 +97,8 @@ public class Server implements Serving {
             client.configureBlocking(false);
             Connection connection = new Connection(client);
             client.register(selector, SelectionKey.OP_READ, connection);
-            continue; // ← done with this key
+            iterator.remove(); // ← done with this key
+            continue;
           }
 
           if (key.isReadable()) {
@@ -255,8 +260,6 @@ public class Server implements Serving {
           }
 
         }
-
-        selector.selectedKeys().clear();
 
       }
     } catch (Exception e) {
