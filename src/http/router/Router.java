@@ -28,6 +28,7 @@ public class Router implements Routing {
     private Map<String, String> errorPages = new HashMap<>();
     private Map<String, String> cgiExtensions = new HashMap<>();
     private Map<String, RedirectConfig> redirects = new HashMap<>();
+    private Map<String, String> virtualHosts = new HashMap<>(); // hostname -> static directory
 
     // Inner class for redirect configuration
     private static class RedirectConfig {
@@ -187,11 +188,19 @@ public class Router implements Routing {
                     .build();
         }
 
+        // Determine static directory based on virtual host
+        String host = request.getHeader("Host");
+        String currentStaticDirectory = this.staticDirectory;
+        if (host != null && this.virtualHosts.containsKey(host)) {
+            currentStaticDirectory = this.virtualHosts.get(host);
+            System.out.println("Using virtual host directory: " + currentStaticDirectory + " for host: " + host);
+        }
+
         if (request.getMethod().equals("GET")) {
             System.out.println("Request path: " + request.getPath());
-            String prefix = "/" + this.staticDirectory + "/";
+            String prefix = "/" + currentStaticDirectory + "/";
 
-            System.out.println("staticDirectory = [" + this.staticDirectory + "]");
+            System.out.println("staticDirectory = [" + currentStaticDirectory + "]");
             System.out.println("prefix          = [" + prefix + "]");
             System.out.println("requestPath     = [" + request.getPath() + "]");
             System.out.println(
@@ -202,7 +211,7 @@ public class Router implements Routing {
                     String relative = request.getPath()
                             .substring(prefix.length());
 
-                    Path requested = Paths.get(this.staticDirectory)
+                    Path requested = Paths.get(currentStaticDirectory)
                             .resolve(relative);
 
                     System.out.println("serving static file: " + requested.toAbsolutePath());
@@ -457,6 +466,19 @@ public class Router implements Routing {
 
     public Map<String, RedirectConfig> getRedirects() {
         return redirects;
+    }
+
+    // Virtual host management
+    public void addVirtualHost(String hostname, String staticDirectory) {
+        this.virtualHosts.put(hostname, staticDirectory);
+    }
+
+    public String getVirtualHostDirectory(String hostname) {
+        return this.virtualHosts.get(hostname);
+    }
+
+    public Map<String, String> getVirtualHosts() {
+        return virtualHosts;
     }
 
     /**
