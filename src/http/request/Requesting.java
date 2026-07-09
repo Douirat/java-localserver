@@ -17,6 +17,7 @@ public interface Requesting {
     void setRequestLine(String[] requestLine);
     void addHeader(String key, String value);
     void addQueryParam(String key, String value);
+    void addCookie(String key, String value);
     void setBody(byte[] body);
 
 

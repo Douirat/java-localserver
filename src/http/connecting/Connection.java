@@ -22,14 +22,19 @@ public class Connection implements Connecting {
     private Responding response = null;
 
     // buffers for reading and writing:
-    // private final ByteBuffer headersBuffer = ByteBuffer.allocate(8192);
-    // private final ByteBuffer bodyBuffer = ByteBuffer.allocate(8192);
-    // private final ByteBuffer writeBuffer = ByteBuffer.allocate(8192);
+    // private final ByteBuffer headersBuffer = ByteBuffer.allocate(65536);
+    // private final ByteBuffer bodyBuffer = ByteBuffer.allocate(65536);
+    // private final ByteBuffer writeBuffer = ByteBuffer.allocate(65536);
 
-    private final ByteBuffer buffer = ByteBuffer.allocate(8192);
+    private final ByteBuffer buffer = ByteBuffer.allocate(65536); // 64KB for better handling of large bodies
 
     private boolean bufferFlipped = false;
     private boolean isStatic = false;
+    private int maxBodySize = 10485760; // 10MB default
+
+    // Connection timeout tracking
+    private long lastActivityTime;
+    private final long connectionTimeoutMillis = 300000; // 5 minutes default
 
     // Keep track of the connection state.
     private ConnectionState state = ConnectionState.READING;
@@ -55,6 +60,7 @@ public class Connection implements Connecting {
 
     public Connection(SocketChannel channel) {
         this.channel = channel;
+        this.lastActivityTime = System.currentTimeMillis();
     }
 
     // getters and setters:
@@ -154,6 +160,30 @@ public class Connection implements Connecting {
         this.filePosition = position;
     }
 
+    public void setMaxBodySize(int maxSize) {
+        this.maxBodySize = maxSize;
+    }
+
+    public int getMaxBodySize() {
+        return this.maxBodySize;
+    }
+
+    public void updateLastActivity() {
+        this.lastActivityTime = System.currentTimeMillis();
+    }
+
+    public boolean isTimedOut() {
+        return System.currentTimeMillis() - lastActivityTime > connectionTimeoutMillis;
+    }
+
+    public long getLastActivityTime() {
+        return lastActivityTime;
+    }
+
+    public long getConnectionTimeoutMillis() {
+        return connectionTimeoutMillis;
+    }
+
     public void loadBuffer(byte[] bytes) {
         buffer.clear();
 
@@ -234,6 +264,9 @@ public class Connection implements Connecting {
     public int parseHeaders(String[] lines) {
         // Implementation for parsing headers
         if (requestState == RequestState.REQUEST_LINE) {
+            // Reset isStatic flag for new request
+            this.isStatic = false;
+
             String[] requestLine = lines[0].split(" ");
             if (requestLine.length != 3) {
                 throw new RuntimeException("Invalid HTTP request line");
@@ -253,14 +286,29 @@ public class Connection implements Connecting {
                     throw new RuntimeException("Invalid HTTP header: ");
                 }
                 this.request.addHeader(header[0], header[1]);
+
+                // Parse Cookie header if present
+                if (header[0].equalsIgnoreCase("Cookie")) {
+                    String[] cookies = header[1].split(";");
+                    for (String cookie : cookies) {
+                        String[] keyValue = cookie.trim().split("=", 2);
+                        if (keyValue.length == 2) {
+                            this.request.addCookie(keyValue[0].trim(), keyValue[1].trim());
+                        }
+                    }
+                }
             }
         }
 
         // extract the length of the body if exists:
         String contentLength = this.request.getHeaders().get("Content-Length");
         if (contentLength != null) {
+            int length = Integer.parseInt(contentLength);
+            if (length > this.maxBodySize) {
+                throw new RuntimeException("413 Payload Too Large: Content-Length " + length + " exceeds maximum " + this.maxBodySize);
+            }
             this.requestState = RequestState.BODY;
-            return Integer.parseInt(contentLength);
+            return length;
         }
         return 0;
     }

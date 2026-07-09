@@ -1,11 +1,11 @@
 package http.server;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.util.ArrayList;
+import java.net.ServerSocket;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import http.connecting.Connection;
@@ -29,6 +29,18 @@ public class Server implements Serving {
     this.ports.add(8080);
   }
 
+  /**
+   * Check if a port is available (not in use).
+   */
+  private boolean isPortAvailable(int port) {
+    try (ServerSocket socket = new ServerSocket(port)) {
+      socket.setReuseAddress(true);
+      return true;
+    } catch (IOException e) {
+      return false;
+    }
+  }
+
   public void start() {
     try (var selector = Selector.open()) {
       /**
@@ -48,36 +60,23 @@ public class Server implements Serving {
 
         // Create one listening socket per port
         for (int port : ports) {
+            // Check for port conflict before binding
+            if (!isPortAvailable(port)) {
+                System.err.println("Port " + port + " is already in use. Skipping...");
+                continue;
+            }
+
             ServerSocketChannel server = ServerSocketChannel.open();
 
             server.configureBlocking(false);
             server.bind(new InetSocketAddress(port));
             server.register(selector, SelectionKey.OP_ACCEPT);
-          
+
 
             System.out.println("Listening on port: " + port);
         }
-      /**
-       * This is where the OS socket is created and attached to a port.
-       * 
-       * Internally:
-       * 
-       * A TCP socket is created
-       * It is bound to:
-       * IP: 0.0.0.0 (usually all interfaces)
-       * Port: 8080 (your value)
-       * What this means physically
-       * The OS now knows:
-       * “Any incoming TCP connection targeting port 8080 should go to this socket.”
-       */
-      serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-      /**
-       * “Wake me up when the OS says this listening socket can accept a connection
-       * without blocking.”
-       */
-
-      System.out.println("Server is listening on port: " + this.port);
+        System.out.println("Server is listening on ports: " + ports);
 
       while (true) {
 
@@ -86,7 +85,11 @@ public class Server implements Serving {
           continue;
         }
 
-        for (var key : selector.selectedKeys()) {
+        var selectedKeys = selector.selectedKeys();
+        var iterator = selectedKeys.iterator();
+
+        while (iterator.hasNext()) {
+          var key = iterator.next();
 
           if (key.isAcceptable()) {
             ServerSocketChannel channel = (ServerSocketChannel) key.channel();
@@ -94,62 +97,84 @@ public class Server implements Serving {
             client.configureBlocking(false);
             Connection connection = new Connection(client);
             client.register(selector, SelectionKey.OP_READ, connection);
-            continue; // ← done with this key
+            iterator.remove(); // ← done with this key
+            continue;
           }
 
           if (key.isReadable()) {
             Connection connection = (Connection) key.attachment();
             SocketChannel channel = connection.getChannel();
 
-            int bytes = channel.read(connection.getBuffer());
+            try {
+              // Check for timeout
+              if (connection.isTimedOut()) {
+                System.err.println("Connection timed out, closing");
+                channel.close();
+                key.cancel();
+                continue;
+              }
 
-            if (bytes == -1) {
-              channel.close();
-              key.cancel();
-              continue;
-            }
+              int bytes = channel.read(connection.getBuffer());
 
-            connection.ParseRequest();
+              if (bytes == -1) {
+                channel.close();
+                key.cancel();
+                continue;
+              }
 
-            if (connection.getRequestState() == RequestState.COMPLETE) {
-              Response response = this.router.serve(connection.getRequest());
-              if (response != null) {
+              // Update last activity time on read
+              connection.updateLastActivity();
 
-                System.out.println("The returned response: " + response.toString());
+              connection.ParseRequest();
 
-                System.out.println("request debugging: " + connection.getRequest().toString());
-                response.setVersion(connection.getRequest().getVersion());
+              if (connection.getRequestState() == RequestState.COMPLETE) {
+                Response response = this.router.serve(connection.getRequest());
+                if (response != null) {
 
-                connection.setResponse(response);
-                if (response.isStatic()) {
-                  connection.setAsStaticResponse();
-                  Body body = response.getBody();
-                  FileChannel fc = ((FileBody) body).getChannel();
+                  System.out.println("The returned response: " + response.toString());
 
-                  connection.setFileChannel(fc);
-                  connection.setFileSize(fc.size());
-                  connection.setFilePosition(0);
+                  System.out.println("request debugging: " + connection.getRequest().toString());
+                  response.setVersion(connection.getRequest().getVersion());
 
-                  System.out.println("File size: " + fc.size());
+                  connection.setResponse(response);
+                  if (response.isStatic()) {
+                    connection.setAsStaticResponse();
+                    Body body = response.getBody();
+                    FileChannel fc = ((FileBody) body).getChannel();
 
-                  String headers = connection.prepareHeaders((int) fc.size());
+                    connection.setFileChannel(fc);
+                    connection.setFileSize(fc.size());
+                    connection.setFilePosition(0);
 
-                  System.out.println("==== HEADERS ====");
-                  System.out.print(headers);
-                  System.out.println("=================");
+                    System.out.println("File size: " + fc.size());
 
-                  byte[] headersBytes = headers.getBytes();
-                  connection.loadBuffer(headersBytes);
+                    String headers = connection.prepareHeaders((int) fc.size());
+
+                    System.out.println("==== HEADERS ====");
+                    System.out.print(headers);
+                    System.out.println("=================");
+
+                    byte[] headersBytes = headers.getBytes();
+                    connection.loadBuffer(headersBytes);
+
+                    connection.setConnectionState(ConnectionState.WRITING_HEADERS);
+
+                  } else {
+                    connection.prepareResponse();
+                  }
 
                   connection.setConnectionState(ConnectionState.WRITING_HEADERS);
-
-                } else {
-                  connection.prepareResponse();
+                  key.interestOps(SelectionKey.OP_WRITE);
                 }
-
-                connection.setConnectionState(ConnectionState.WRITING_HEADERS);
-                key.interestOps(SelectionKey.OP_WRITE);
               }
+            } catch (Exception e) {
+              System.err.println("Error handling client: " + e.getMessage());
+              try {
+                channel.close();
+              } catch (Exception ex) {
+                System.err.println("Error closing channel: " + ex.getMessage());
+              }
+              key.cancel();
             }
             continue; // ← don't fall through to isWritable() this iteration
           }
@@ -159,39 +184,52 @@ public class Server implements Serving {
             Connection connection = (Connection) key.attachment();
             SocketChannel channel = connection.getChannel();
 
-            if (connection.isStaticResponse()) {
-
-              if (connection.getConnectionState() == ConnectionState.WRITING_HEADERS) {
-                ByteBuffer buffer = connection.getBuffer();
-                channel.write(buffer);
-
-                if (!buffer.hasRemaining()) {
-                  connection.setConnectionState(ConnectionState.WRITING_BODY);
-                  buffer.clear();
-                }
-
-              } else if (connection.getConnectionState() == ConnectionState.WRITING_BODY) {
-                long sent = connection.getFileChannel().transferTo(
-                    connection.getFilePosition(),
-                    connection.getFileSize()
-                        - connection.getFilePosition(),
-                    channel);
-
-                if (sent > 0) {
-                  connection.setFilePosition(connection.getFilePosition() + sent);
-                }
-
-                if (connection.getFilePosition() >= connection.getFileSize()) {
-
-                  connection.getFileChannel().close();
-
-                  connection.setConnectionState(
-                      ConnectionState.CLOSED);
-
-                  channel.close();
-                  key.cancel();
-                }
+            try {
+              // Check for timeout
+              if (connection.isTimedOut()) {
+                System.err.println("Connection timed out during write, closing");
+                channel.close();
+                key.cancel();
+                continue;
               }
+
+              if (connection.isStaticResponse()) {
+
+                if (connection.getConnectionState() == ConnectionState.WRITING_HEADERS) {
+                  ByteBuffer buffer = connection.getBuffer();
+                  channel.write(buffer);
+
+                  if (!buffer.hasRemaining()) {
+                    connection.setConnectionState(ConnectionState.WRITING_BODY);
+                    buffer.clear();
+                  }
+
+                  // Update activity on write
+                  connection.updateLastActivity();
+
+                } else if (connection.getConnectionState() == ConnectionState.WRITING_BODY) {
+                  long sent = connection.getFileChannel().transferTo(
+                      connection.getFilePosition(),
+                      connection.getFileSize()
+                          - connection.getFilePosition(),
+                      channel);
+
+                  if (sent > 0) {
+                    connection.setFilePosition(connection.getFilePosition() + sent);
+                    connection.updateLastActivity();
+                  }
+
+                  if (connection.getFilePosition() >= connection.getFileSize()) {
+
+                    connection.getFileChannel().close();
+
+                    connection.setConnectionState(
+                        ConnectionState.CLOSED);
+
+                    channel.close();
+                    key.cancel();
+                  }
+                }
 
             } else {
 
@@ -205,13 +243,23 @@ public class Server implements Serving {
                 key.interestOps(SelectionKey.OP_READ);
               }
 
+              // Update activity on write
+              connection.updateLastActivity();
+            }
+
+            } catch (Exception e) {
+              System.err.println("Error writing to client: " + e.getMessage());
+              try {
+                channel.close();
+              } catch (Exception ex) {
+                System.err.println("Error closing channel: " + ex.getMessage());
+              }
+              key.cancel();
             }
 
           }
 
         }
-
-        selector.selectedKeys().clear();
 
       }
     } catch (Exception e) {
@@ -220,23 +268,30 @@ public class Server implements Serving {
   }
 
   /**
-   * Creating my setters.
+   * Add a port to the server.
    */
   @Override
   public void setPort(int port) {
     if (port < 1 || port > 65535) {
-      this.port = 8080;
-    } else {
-      this.port = port;
+      throw new IllegalArgumentException("Port must be between 1 and 65535");
     }
+    this.ports.add(port);
   }
 
   /**
-   * Creating my getters.
+   * Get the set of ports the server is listening on.
    */
   @Override
   public int getPort() {
-    return this.port;
+    // Return the first port for backward compatibility
+    return this.ports.isEmpty() ? 8080 : this.ports.iterator().next();
+  }
+
+  /**
+   * Get all ports the server is listening on.
+   */
+  public Set<Integer> getPorts() {
+    return this.ports;
   }
 
   @Override
