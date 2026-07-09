@@ -264,6 +264,9 @@ public class Connection implements Connecting {
     public int parseHeaders(String[] lines) {
         // Implementation for parsing headers
         if (requestState == RequestState.REQUEST_LINE) {
+            // Reset isStatic flag for new request
+            this.isStatic = false;
+
             String[] requestLine = lines[0].split(" ");
             if (requestLine.length != 3) {
                 throw new RuntimeException("Invalid HTTP request line");
