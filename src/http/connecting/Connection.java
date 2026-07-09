@@ -22,11 +22,11 @@ public class Connection implements Connecting {
     private Responding response = null;
 
     // buffers for reading and writing:
-    // private final ByteBuffer headersBuffer = ByteBuffer.allocate(8192);
-    // private final ByteBuffer bodyBuffer = ByteBuffer.allocate(8192);
-    // private final ByteBuffer writeBuffer = ByteBuffer.allocate(8192);
+    // private final ByteBuffer headersBuffer = ByteBuffer.allocate(65536);
+    // private final ByteBuffer bodyBuffer = ByteBuffer.allocate(65536);
+    // private final ByteBuffer writeBuffer = ByteBuffer.allocate(65536);
 
-    private final ByteBuffer buffer = ByteBuffer.allocate(8192);
+    private final ByteBuffer buffer = ByteBuffer.allocate(65536); // 64KB for better handling of large bodies
 
     private boolean bufferFlipped = false;
     private boolean isStatic = false;
