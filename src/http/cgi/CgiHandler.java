@@ -14,20 +14,26 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Handles CGI (Common Gateway Interface) execution for Python scripts.
+ * Handles CGI (Common Gateway Interface) execution for Python and Perl scripts.
  */
 public class CgiHandler {
 
     private final String cgiDirectory;
     private final String pythonExecutable;
+    private final String perlExecutable;
 
     public CgiHandler(String cgiDirectory) {
-        this(cgiDirectory, "python"); // Default to 'python' in PATH
+        this(cgiDirectory, "python", "perl"); // Default to 'python' and 'perl' in PATH
     }
 
     public CgiHandler(String cgiDirectory, String pythonExecutable) {
+        this(cgiDirectory, pythonExecutable, "perl");
+    }
+
+    public CgiHandler(String cgiDirectory, String pythonExecutable, String perlExecutable) {
         this.cgiDirectory = cgiDirectory;
         this.pythonExecutable = pythonExecutable;
+        this.perlExecutable = perlExecutable;
     }
 
     /**
@@ -67,8 +73,23 @@ public class CgiHandler {
             Map<String, String> env = new HashMap<>(System.getenv());
             env.putAll(buildCgiEnvironment(request, scriptPath));
 
+            // Determine interpreter based on file extension
+            String scriptExtension = getScriptExtension(scriptPath);
+            String interpreter;
+            if (scriptExtension.equals("pl")) {
+                interpreter = perlExecutable;
+            } else if (scriptExtension.equals("py")) {
+                interpreter = pythonExecutable;
+            } else {
+                return new ResponseBuilder()
+                        .setStatus(400)
+                        .setHeader("Content-Type", "text/plain")
+                        .setBody("Unsupported CGI script extension: " + scriptExtension)
+                        .build();
+            }
+
             // Build command
-            ProcessBuilder pb = new ProcessBuilder(pythonExecutable, scriptPath.toString());
+            ProcessBuilder pb = new ProcessBuilder(interpreter, scriptPath.toString());
             pb.environment().putAll(env);
 
             // Redirect error stream to output stream
@@ -227,6 +248,18 @@ public class CgiHandler {
      * Check if a file extension is configured for CGI.
      */
     public boolean isCgiExtension(String extension) {
-        return extension.equalsIgnoreCase("py") || extension.equalsIgnoreCase("cgi");
+        return extension.equalsIgnoreCase("py") || extension.equalsIgnoreCase("cgi") || extension.equalsIgnoreCase("pl");
+    }
+
+    /**
+     * Get the file extension from a script path.
+     */
+    private String getScriptExtension(Path scriptPath) {
+        String fileName = scriptPath.getFileName().toString();
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex > 0 && dotIndex < fileName.length() - 1) {
+            return fileName.substring(dotIndex + 1).toLowerCase();
+        }
+        return "";
     }
 }
