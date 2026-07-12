@@ -1,16 +1,28 @@
 import http.server.ServerBuilder;
 import http.server.Server;
+import http.config.ConfigLoader;
 import http.request.Request;
 import http.response.Response;
 import model.User;
 import http.response.cookie.*;
+import http.admin.AdminDashboard;
 import java.util.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
 
-        Server server = new ServerBuilder()
-            .port(8080)
+        ServerBuilder serverBuilder = new ServerBuilder();
+
+        // Load configuration from config.json if it exists
+        try {
+            ConfigLoader configLoader = new ConfigLoader("config.json", serverBuilder);
+            configLoader.load();
+            System.out.println("Configuration loaded from config.json");
+        } catch (Exception e) {
+            System.out.println("Could not load config.json, using defaults: " + e.getMessage());
+        }
+
+        Server server = serverBuilder
             
             .get("/api/cookies", (Request request) -> {
                 Map<String, String> cookies = request.getCookies();
@@ -115,6 +127,19 @@ public class Main {
                 response.setBody(map);
                 return response;
             })
+
+            .delete("/api/users/{userId}", (Request request) -> {
+                String userId = request.getPathVariables().get("userId");
+                System.out.println("DELETE request for user ID: " + userId);
+
+                Response response = new Response();
+                response.setStatus(200);
+                response.setHeader("Content-Type", "application/json");
+                response.setBody(Map.of("deleted", userId));
+                return response;
+            })
+
+            .get("/admin", new AdminDashboard())
             .build();
 
         server.start();
