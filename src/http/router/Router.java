@@ -193,12 +193,9 @@ public class Router implements Routing {
         if (!isMethodAllowed(request.getPath(), request.getMethod())) {
             Set<String> allowedMethods = getAllowedMethods(request.getPath());
             String allowHeader = String.join(", ", allowedMethods);
-            return new ResponseBuilder()
-                    .setStatus(405)
-                    .setHeader("Allow", allowHeader)
-                    .setHeader("Content-Type", "text/plain")
-                    .setBody("Method Not Allowed")
-                    .build();
+            Response errResponse = buildErrorResponse(405, "Method Not Allowed");
+            errResponse.getHeaders().put("Allow", allowHeader);
+            return errResponse;
         }
 
         // Determine static directory based on virtual host
@@ -207,6 +204,15 @@ public class Router implements Routing {
         if (host != null && this.virtualHosts.containsKey(host)) {
             currentStaticDirectory = this.virtualHosts.get(host);
             System.out.println("Using virtual host directory: " + currentStaticDirectory + " for host: " + host);
+        }
+
+        // Check for CGI execution
+        if (request.getPath().startsWith("/cgi-bin/")) {
+            String scriptName = request.getPath().substring("/cgi-bin/".length());
+            String pyExec = this.cgiExtensions.getOrDefault("py", "python");
+            String plExec = this.cgiExtensions.getOrDefault("pl", "perl");
+            http.cgi.CgiHandler cgiHandler = new http.cgi.CgiHandler("cgi-bin", pyExec, plExec);
+            return cgiHandler.executeScript(scriptName, request);
         }
 
         if (request.getMethod().equals("GET")) {
@@ -232,9 +238,7 @@ public class Router implements Routing {
                     return this.serveFile(requested);
 
                 } catch (IOException e) {
-                    return new ResponseBuilder()
-                            .setStatus(500)
-                            .build();
+                    return buildErrorResponse(500, "Internal Server Error");
                 }
             }
         }
@@ -242,12 +246,7 @@ public class Router implements Routing {
 
         // if no handler found, return 404 response:
         if (handler == null) {
-            Response response = new ResponseBuilder()
-                    .setStatus(404)
-                    .setHeader("Content-Type", "text/plain")
-                    .setBody("Not Found")
-                    .build();
-            return response;
+            return buildErrorResponse(404, "Not Found");
         }
 
         return handler.handle(request);
@@ -272,16 +271,12 @@ public class Router implements Routing {
                 .normalize();
 
         if (!path.startsWith(staticRoot)) {
-            return new ResponseBuilder()
-                    .setStatus(403)
-                    .build();
+            return buildErrorResponse(403, "Forbidden");
         }
 
         // File does not exist.
         if (!Files.exists(path)) {
-            return new ResponseBuilder()
-                    .setStatus(404)
-                    .build();
+            return buildErrorResponse(404, "Not Found");
         }
 
         // Not a regular file - check if it's a directory
@@ -299,24 +294,16 @@ public class Router implements Routing {
                 }
                 
                 // Directory listing disabled and no default file
-                return new ResponseBuilder()
-                        .setStatus(403)
-                        .setHeader("Content-Type", "text/plain")
-                        .setBody("Directory listing disabled")
-                        .build();
+                return buildErrorResponse(403, "Directory listing disabled");
             }
             
             // Not a directory and not a regular file
-            return new ResponseBuilder()
-                    .setStatus(404)
-                    .build();
+            return buildErrorResponse(404, "Not Found");
         }
 
         // Exists but cannot be read.
         if (!Files.isReadable(path)) {
-            return new ResponseBuilder()
-                    .setStatus(403)
-                    .build();
+            return buildErrorResponse(403, "Forbidden");
         }
 
         FileChannel fc = null;
@@ -524,6 +511,37 @@ public class Router implements Routing {
      *         video/mp4
      *         application/pdf
      */
+
+    private Response buildErrorResponse(int statusCode, String defaultMessage) {
+        String errorPagePath = this.errorPages.get(String.valueOf(statusCode));
+        if (errorPagePath != null) {
+            Path path = Paths.get(errorPagePath).toAbsolutePath().normalize();
+            if (Files.exists(path) && Files.isReadable(path) && Files.isRegularFile(path)) {
+                try {
+                    FileChannel fc = FileChannel.open(path, StandardOpenOption.READ);
+                    long size = fc.size();
+                    String mime = mimeToContentType(path);
+                    FileBody body = new FileBody();
+                    body.setChannel(fc);
+                    return new ResponseBuilder()
+                            .setStatus(statusCode)
+                            .setHeader("Content-Length", Long.toString(size))
+                            .setHeader("Content-Type", mime)
+                            .setAsStatic()
+                            .setBody(body)
+                            .build();
+                } catch (IOException e) {
+                    // Fallback to default
+                }
+            }
+        }
+        
+        return new ResponseBuilder()
+                .setStatus(statusCode)
+                .setHeader("Content-Type", "text/plain")
+                .setBody(defaultMessage)
+                .build();
+    }
 
     public static String mimeToContentType(Path path) {
         String file = path.getFileName().toString();
