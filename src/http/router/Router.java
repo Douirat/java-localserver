@@ -252,6 +252,31 @@ public class Router implements Routing {
         return handler.handle(request);
     }
 
+    /**
+     * Build an error response using custom error pages if configured.
+     */
+    private Response buildErrorResponse(int statusCode, String defaultMessage) {
+        String errorPagePath = this.errorPages.get(String.valueOf(statusCode));
+        
+        if (errorPagePath != null) {
+            try {
+                Path errorFilePath = Paths.get(errorPagePath);
+                if (Files.exists(errorFilePath) && Files.isRegularFile(errorFilePath) && Files.isReadable(errorFilePath)) {
+                    return serveFile(errorFilePath);
+                }
+            } catch (IOException e) {
+                System.err.println("Error serving custom error page: " + e.getMessage());
+            }
+        }
+        
+        // Fallback to default error response
+        return new ResponseBuilder()
+                .setStatus(statusCode)
+                .setHeader("Content-Type", "text/plain")
+                .setBody(defaultMessage)
+                .build();
+    }
+
     // Serve a static file from the configured static directory.
     public Response serveFile(Path requested)
             throws IOException {
@@ -512,36 +537,6 @@ public class Router implements Routing {
      *         application/pdf
      */
 
-    private Response buildErrorResponse(int statusCode, String defaultMessage) {
-        String errorPagePath = this.errorPages.get(String.valueOf(statusCode));
-        if (errorPagePath != null) {
-            Path path = Paths.get(errorPagePath).toAbsolutePath().normalize();
-            if (Files.exists(path) && Files.isReadable(path) && Files.isRegularFile(path)) {
-                try {
-                    FileChannel fc = FileChannel.open(path, StandardOpenOption.READ);
-                    long size = fc.size();
-                    String mime = mimeToContentType(path);
-                    FileBody body = new FileBody();
-                    body.setChannel(fc);
-                    return new ResponseBuilder()
-                            .setStatus(statusCode)
-                            .setHeader("Content-Length", Long.toString(size))
-                            .setHeader("Content-Type", mime)
-                            .setAsStatic()
-                            .setBody(body)
-                            .build();
-                } catch (IOException e) {
-                    // Fallback to default
-                }
-            }
-        }
-        
-        return new ResponseBuilder()
-                .setStatus(statusCode)
-                .setHeader("Content-Type", "text/plain")
-                .setBody(defaultMessage)
-                .build();
-    }
 
     public static String mimeToContentType(Path path) {
         String file = path.getFileName().toString();

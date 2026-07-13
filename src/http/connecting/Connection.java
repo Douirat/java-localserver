@@ -4,6 +4,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.List;
 
 import http.response.Responding;
 import http.response.Response;
@@ -328,6 +329,36 @@ public class Connection implements Connecting {
 
         buffer.position(bodyStart);
         buffer.get(bodyBytes);
+
+        // Check for multipart/form-data
+        String contentType = this.request.getHeaders().get("Content-Type");
+        if (contentType != null && contentType.startsWith("multipart/form-data")) {
+            try {
+                // Extract boundary from Content-Type header
+                String boundary = null;
+                String[] contentTypeParts = contentType.split(";");
+                for (String part : contentTypeParts) {
+                    part = part.trim();
+                    if (part.startsWith("boundary=")) {
+                        boundary = part.substring("boundary=".length());
+                        if (boundary.startsWith("\"") && boundary.endsWith("\"")) {
+                            boundary = boundary.substring(1, boundary.length() - 1);
+                        }
+                        break;
+                    }
+                }
+
+                if (boundary != null) {
+                    http.upload.MultipartParser parser = new http.upload.MultipartParser(boundary, bodyBytes);
+                    List<http.upload.MultipartPart> parts = parser.parse();
+                    this.request.setMultipartParts(parts);
+                    System.out.println("Parsed multipart request with " + parts.size() + " parts");
+                }
+            } catch (Exception e) {
+                System.err.println("Error parsing multipart data: " + e.getMessage());
+            }
+        }
+
         this.request.setBody(bodyBytes);
         this.requestState = RequestState.COMPLETE;
     }

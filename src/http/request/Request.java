@@ -3,7 +3,9 @@ package http.request;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.nio.charset.StandardCharsets;
+import http.upload.MultipartPart;
 
 public class Request implements Requesting {
 
@@ -24,6 +26,7 @@ public class Request implements Requesting {
 
     
     private byte[] body;
+    private List<MultipartPart> multipartParts;
 
     public Request() {
 
@@ -112,6 +115,14 @@ public class Request implements Requesting {
     // Body comes after the header is handled:
     public void setBody(byte[] body) {
         this.body = body;
+    }
+
+    public void setMultipartParts(List<MultipartPart> parts) {
+        this.multipartParts = parts;
+    }
+
+    public List<MultipartPart> getMultipartParts() {
+        return multipartParts;
     }
 
     // return the cookies object, which contains all cookie attributes (name, value, domain, path, expires, secure, httpOnly, sameSite)

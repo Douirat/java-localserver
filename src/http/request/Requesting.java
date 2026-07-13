@@ -1,6 +1,7 @@
 package http.request;
 
 import java.util.*;
+import http.upload.MultipartPart;
 
 public interface Requesting {
     String getMethod();
@@ -19,7 +20,8 @@ public interface Requesting {
     void addQueryParam(String key, String value);
     void addCookie(String key, String value);
     void setBody(byte[] body);
-
+    void setMultipartParts(List<MultipartPart> parts);
 
     byte[] getBody();
+    List<MultipartPart> getMultipartParts();
 }
