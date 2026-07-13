@@ -29,17 +29,7 @@ public class Server implements Serving {
     this.ports.add(8080);
   }
 
-  /**
-   * Check if a port is available (not in use).
-   */
-  private boolean isPortAvailable(int port) {
-    try (ServerSocket socket = new ServerSocket(port)) {
-      socket.setReuseAddress(true);
-      return true;
-    } catch (IOException e) {
-      return false;
-    }
-  }
+
 
   public void start() {
     try (var selector = Selector.open()) {
@@ -60,20 +50,18 @@ public class Server implements Serving {
 
         // Create one listening socket per port
         for (int port : ports) {
-            // Check for port conflict before binding
-            if (!isPortAvailable(port)) {
-                System.err.println("Port " + port + " is already in use. Skipping...");
+            ServerSocketChannel server = ServerSocketChannel.open();
+            server.configureBlocking(false);
+
+            try {
+                server.bind(new InetSocketAddress(port));
+                server.register(selector, SelectionKey.OP_ACCEPT);
+                System.out.println("Listening on port: " + port);
+            } catch (IOException e) {
+                System.err.println("Port " + port + " is already in use or cannot be bound. Skipping...");
+                server.close();
                 continue;
             }
-
-            ServerSocketChannel server = ServerSocketChannel.open();
-
-            server.configureBlocking(false);
-            server.bind(new InetSocketAddress(port));
-            server.register(selector, SelectionKey.OP_ACCEPT);
-
-
-            System.out.println("Listening on port: " + port);
         }
 
         System.out.println("Server is listening on ports: " + ports);
