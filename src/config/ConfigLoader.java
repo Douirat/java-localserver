@@ -21,9 +21,21 @@ public class ConfigLoader {
         String content = read();
         List<String> tokens = new ArrayList<>();
         StringBuilder current = new StringBuilder();
+        boolean comment = false;
 
         for (char c : content.toCharArray()) {
-            if (Character.isWhitespace(c)) {
+
+            if (comment) {
+                if (c == '\n') {
+                    comment = false;
+                }
+                continue;
+            }
+
+            if (c == '#') {
+                addToken(tokens, current);
+                comment = true;
+            } else if (Character.isWhitespace(c)) {
                 addToken(tokens, current);
             } else if (c == '{' || c == '}' || c == ';') {
                 addToken(tokens, current);
