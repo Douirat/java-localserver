@@ -1,9 +1,12 @@
 package config;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ServerConfig {
 
     private String host;
-    private int port;
+    private final List<Integer> ports = new ArrayList<>();
     private boolean defaultServer;
 
     private String webRoot;
@@ -19,12 +22,12 @@ public class ServerConfig {
         this.host = h;
     }
 
-    public int getPort() {
-        return port;
+    public List<Integer> getPorts() {
+        return ports;
     }
 
-    public void setPort(int p) {
-        this.port = p;
+    public void addPort(int p) {
+        this.ports.add(p);
     }
 
     public boolean isDefaultServer() {

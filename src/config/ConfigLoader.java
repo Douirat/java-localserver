@@ -55,4 +55,47 @@ public class ConfigLoader {
             current.setLength(0);
         }
     }
+
+    public ServerConfig parse() throws IOException {
+        List<String> tokens = tokenize();
+        ServerConfig server = new ServerConfig();
+
+        int i = 0;
+
+        if (!tokens.get(i).equals("server")) {
+            throw new IllegalArgumentException("Expected 'server'");
+        }
+
+        i++;
+
+        if (!tokens.get(i).equals("{")) {
+            throw new IllegalArgumentException("Expected '{'");
+        }
+
+        i++;
+
+        while (i < tokens.size() && !tokens.get(i).equals("}")) {
+            String directive = tokens.get(i++);
+
+            if (directive.equals("host")) {
+                server.setHost(tokens.get(i++));
+            } else if (directive.equals("port")) {
+                server.addPort(Integer.parseInt(tokens.get(i++)));
+            } else {
+                throw new IllegalArgumentException("Unknown directive: " + directive);
+            }
+
+            if (!tokens.get(i).equals(";")) {
+                throw new IllegalArgumentException("Expected ';'");
+            }
+
+            i++;
+        }
+
+        if (i >= tokens.size()) {
+            throw new IllegalArgumentException("Expected '}'");
+        }
+
+        return server;
+    }
 }

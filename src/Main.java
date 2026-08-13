@@ -1,7 +1,7 @@
 import java.io.IOException;
-import java.util.List;
 
 import config.ConfigLoader;
+import config.ServerConfig;
 
 public class Main {
     public static void main(String[] args) {
@@ -10,11 +10,10 @@ public class Main {
         ConfigLoader configLoader = new ConfigLoader(configFilePath);
 
         try {
-            List<String> tokens = configLoader.tokenize();
-            System.out.println("Tokens from config file:");
-            for (String token : tokens) {
-                System.out.println(token);
-            }
+            ServerConfig config = configLoader.parse();
+            System.out.println("Server config from file:");
+            System.out.println("Host: " + config.getHost());
+            System.out.println("Ports: " + config.getPorts());
         } catch (IOException e) {
             System.err.println("Error reading config file: " + e.getMessage());
             System.exit(1);
