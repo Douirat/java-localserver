@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.nio.charset.StandardCharsets;
 
-public class HttpRequest implements Requesting {
+public class Request implements Requesting {
 
     private String method;
     private String path;
@@ -23,7 +23,7 @@ public class HttpRequest implements Requesting {
 
     private byte[] body;
 
-    public HttpRequest() {
+    public Request() {
 
     }
 
