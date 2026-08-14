@@ -34,6 +34,7 @@ public class Server {
     }
 
     public void start() throws IOException {
+        
         selector = Selector.open();
 
         for (int port : ports) {
