@@ -1,7 +1,9 @@
 package config;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ServerConfig {
 
@@ -9,10 +11,10 @@ public class ServerConfig {
     private final List<Integer> ports = new ArrayList<>();
     private boolean defaultServer;
 
-    private String webRoot;
-    private String defaultIndex;
+    private String serverName;
+    private final Map<Integer, String> errorPages = new HashMap<>();
     private long maxBodyBytes;
-    private boolean directoryListing;
+    private final List<RouteConfig> routes = new ArrayList<>();
 
     public String getHost() {
         return host;
@@ -38,22 +40,6 @@ public class ServerConfig {
         this.defaultServer = b;
     }
 
-    public String getWebRoot() {
-        return webRoot;
-    }
-
-    public void setWebRoot(String r) {
-        this.webRoot = r;
-    }
-
-    public String getDefaultIndex() {
-        return defaultIndex;
-    }
-
-    public void setDefaultIndex(String f) {
-        this.defaultIndex = f;
-    }
-
     public long getMaxBodyBytes() {
         return maxBodyBytes;
     }
@@ -62,11 +48,28 @@ public class ServerConfig {
         this.maxBodyBytes = n;
     }
 
-    public boolean isDirectoryListing() {
-        return directoryListing;
+    public String getServerName() {
+        return serverName;
     }
 
-    public void setDirectoryListing(boolean b) {
-        this.directoryListing = b;
+    public void setServerName(String name) {
+        this.serverName = name;
     }
+
+    public Map<Integer, String> getErrorPages() {
+        return errorPages;
+    }
+
+    public void addErrorPage(int code, String path) {
+        this.errorPages.put(code, path);
+    }
+
+    public List<RouteConfig> getRoutes() {
+        return routes;
+    }
+
+    public void addRoute(RouteConfig route) {
+        this.routes.add(route);
+    }
+
 }

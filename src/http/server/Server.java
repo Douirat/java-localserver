@@ -13,24 +13,12 @@ public class Server {
     private final String host;
     private final List<Integer> ports;
 
-    private final String webRoot;
-    private final String defaultIndex;
-    private final long maxBodyBytes;
-    private final boolean directoryListing;
-    private final boolean defaultServer;
-
     private Selector selector;
     private final List<ServerSocketChannel> serverChannels = new ArrayList<>();
 
     public Server(ServerConfig config) {
         this.host = config.getHost();
         this.ports = new ArrayList<>(config.getPorts());
-
-        this.webRoot = config.getWebRoot();
-        this.defaultIndex = config.getDefaultIndex();
-        this.maxBodyBytes = config.getMaxBodyBytes();
-        this.directoryListing = config.isDirectoryListing();
-        this.defaultServer = config.isDefaultServer();
     }
 
     public void start() throws IOException {
