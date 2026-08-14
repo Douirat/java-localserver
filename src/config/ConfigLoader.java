@@ -56,55 +56,61 @@ public class ConfigLoader {
         }
     }
 
-    public ServerConfig parse() throws IOException {
+    public List<ServerConfig> parse() throws IOException {
         List<String> tokens = tokenize();
-        ServerConfig server = new ServerConfig();
+        List<ServerConfig> servers = new ArrayList<>();
 
         int i = 0;
-
-        if (!tokens.get(i).equals("server")) {
-            throw new IllegalArgumentException("Expected 'server'");
-        }
-
-        i++;
-
-        if (!tokens.get(i).equals("{")) {
-            throw new IllegalArgumentException("Expected '{'");
-        }
-
-        i++;
-
-        while (i < tokens.size() && !tokens.get(i).equals("}")) {
-            String directive = tokens.get(i++);
-
-            if (directive.equals("host")) {
-                server.setHost(tokens.get(i++));
-            } else if (directive.equals("port")) {
-                server.addPort(Integer.parseInt(tokens.get(i++)));
-            } else if (directive.equals("default_server")) {
-                server.setDefaultServer(tokens.get(i++).equals("on"));
-            } else if (directive.equals("client_max_body_size")) {
-                server.setMaxBodyBytes(parseSize(tokens.get(i++)));
-            } else if (directive.equals("server_name")) {
-                server.setServerName(tokens.get(i++));
-            } else if (directive.equals("error_page")) {
-                server.addErrorPage(Integer.parseInt(tokens.get(i++)), tokens.get(i++));
-            } else {
-                throw new IllegalArgumentException("Unknown directive: " + directive);
-            }
-
-            if (!tokens.get(i).equals(";")) {
-                throw new IllegalArgumentException("Expected ';'");
+        while (i < tokens.size()) {
+            if (!tokens.get(i).equals("server")) {
+                throw new IllegalArgumentException("Expected 'server'");
             }
 
             i++;
+
+            if (!tokens.get(i).equals("{")) {
+                throw new IllegalArgumentException("Expected '{'");
+            }
+
+            i++;
+
+            ServerConfig server = new ServerConfig();
+            
+            while (i < tokens.size() && !tokens.get(i).equals("}")) {
+                String directive = tokens.get(i++);
+
+                if (directive.equals("host")) {
+                    server.setHost(tokens.get(i++));
+                } else if (directive.equals("port")) {
+                    server.addPort(Integer.parseInt(tokens.get(i++)));
+                } else if (directive.equals("default_server")) {
+                    server.setDefaultServer(tokens.get(i++).equals("on"));
+                } else if (directive.equals("client_max_body_size")) {
+                    server.setMaxBodyBytes(parseSize(tokens.get(i++)));
+                } else if (directive.equals("server_name")) {
+                    server.setServerName(tokens.get(i++));
+                } else if (directive.equals("error_page")) {
+                    server.addErrorPage(Integer.parseInt(tokens.get(i++)), tokens.get(i++));
+                } else {
+                    throw new IllegalArgumentException("Unknown directive: " + directive);
+                }
+
+                if (!tokens.get(i).equals(";")) {
+                    throw new IllegalArgumentException("Expected ';'");
+                }
+
+                i++;
+            }
+
+            if (i >= tokens.size()) {
+                throw new IllegalArgumentException("Expected '}'");
+            }
+
+            i++;
+            servers.add(server);
         }
 
-        if (i >= tokens.size()) {
-            throw new IllegalArgumentException("Expected '}'");
-        }
-
-        return server;
+        return servers;
     }
 
     private long parseSize(String value) {
