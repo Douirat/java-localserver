@@ -68,7 +68,7 @@ public class ConfigLoader {
 
             i++;
 
-            if (!tokens.get(i).equals("{")) {
+            if (i >= tokens.size() || !tokens.get(i).equals("{")) {
                 throw new IllegalArgumentException("Expected '{'");
             }
 
@@ -91,18 +91,71 @@ public class ConfigLoader {
                     server.setServerName(tokens.get(i++));
                 } else if (directive.equals("error_page")) {
                     server.addErrorPage(Integer.parseInt(tokens.get(i++)), tokens.get(i++));
+                } else if (directive.equals("location")) {
+
+                    RouteConfig route = new RouteConfig();
+                    route.setPath(tokens.get(i++));
+
+                    if (!tokens.get(i++).equals("{")) {
+                        throw new IllegalArgumentException("Expected '{' after location path");
+                    }
+
+                    while (i < tokens.size() && !tokens.get(i).equals("}")) {
+
+                        String locDirective = tokens.get(i++);
+
+                        if (locDirective.equals("root")) {
+                            route.setRoot(tokens.get(i++));
+                        } else if (locDirective.equals("index")) {
+                            route.setIndex(tokens.get(i++));
+                        } else if (locDirective.equals("methods")) {
+                            while (i < tokens.size() && !tokens.get(i).equals(";")) {
+                                route.addMethod(tokens.get(i++));
+                            }
+                        } else if (locDirective.equals("return")) {
+                            route.setRedirectCode(Integer.parseInt(tokens.get(i++)));
+                            route.setRedirectUrl(tokens.get(i++));
+                        } else if (locDirective.equals("upload_dir")) {
+                            route.setUploadDir(tokens.get(i++));
+                        } else if (locDirective.equals("cgi")) {
+                            route.addCgiExtension(tokens.get(i++), tokens.get(i++));
+                        } else if (locDirective.equals("directory_listing")) {
+                            route.setDirectoryListing(tokens.get(i++).equals("on"));
+                        } else {
+                            throw new IllegalArgumentException("Unknown directive in location: " + locDirective);
+                        }
+
+                        if (i >= tokens.size() || !tokens.get(i).equals(";")) {
+                            throw new IllegalArgumentException("Expected ';' in location " + route.getPath());
+                        }
+
+                        i++;
+                    }
+
+                    if (i >= tokens.size() || !tokens.get(i).equals("}")) {
+                        throw new IllegalArgumentException("Expected '}' at the end of location block");
+                    }
+
+                    i++;
+
+                    server.addRoute(route);
+                    continue;
+
                 } else {
-                    throw new IllegalArgumentException("Unknown directive: " + directive);
+
+                    throw new IllegalArgumentException(
+                            "Unknown directive: " + directive);
                 }
 
-                if (!tokens.get(i).equals(";")) {
-                    throw new IllegalArgumentException("Expected ';'");
+                if (i >= tokens.size() || !tokens.get(i).equals(";")) {
+                    throw new IllegalArgumentException(
+                            "Expected ';' after directive: " + directive);
                 }
 
                 i++;
             }
 
-            if (i >= tokens.size()) {
+            if (i >= tokens.size() || !tokens.get(i).equals("}")) {
                 throw new IllegalArgumentException("Expected '}'");
             }
 

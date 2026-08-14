@@ -24,6 +24,18 @@ public class Main {
                 System.out.println("Max Body Size: " + config.getMaxBodyBytes());
                 System.out.println("Default Server: " + config.isDefaultServer());
                 System.out.println("Error Pages: " + config.getErrorPages());
+                System.out.println("Routes:");
+                config.getRoutes().forEach(route -> {
+                    System.out.println("  Path: " + route.getPath());
+                    System.out.println("  Methods: " + route.getMethods());
+                    System.out.println("  Redirect URL: " + route.getRedirectUrl());
+                    System.out.println("  Redirect Code: " + route.getRedirectCode());
+                    System.out.println("  Root: " + route.getRoot());
+                    System.out.println("  Index: " + route.getIndex());
+                    System.out.println("  CGI Extensions: " + route.getCgiExtensions());
+                    System.out.println("  Directory Listing: " + route.isDirectoryListing());
+                    System.out.println("  Upload Dir: " + route.getUploadDir());
+                });
             }
             
             // 3. Create the server using the configuration
