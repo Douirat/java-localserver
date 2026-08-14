@@ -19,6 +19,10 @@ public class Main {
             System.out.println("Server config from file:");
             System.out.println("Host: " + config.getHost());
             System.out.println("Ports: " + config.getPorts());
+            System.out.println("Server Name: " + config.getServerName());
+            System.out.println("Max Body Size: " + config.getMaxBodyBytes());
+            System.out.println("Default Server: " + config.isDefaultServer());
+            System.out.println("Error Pages: " + config.getErrorPages());
 
             // 3. Create the server using the configuration
             Server server = new Server(config);

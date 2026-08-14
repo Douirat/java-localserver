@@ -81,6 +81,14 @@ public class ConfigLoader {
                 server.setHost(tokens.get(i++));
             } else if (directive.equals("port")) {
                 server.addPort(Integer.parseInt(tokens.get(i++)));
+            } else if (directive.equals("default_server")) {
+                server.setDefaultServer(tokens.get(i++).equals("on"));
+            } else if (directive.equals("client_max_body_size")) {
+                server.setMaxBodyBytes(parseSize(tokens.get(i++)));
+            } else if (directive.equals("server_name")) {
+                server.setServerName(tokens.get(i++));
+            } else if (directive.equals("error_page")) {
+                server.addErrorPage(Integer.parseInt(tokens.get(i++)), tokens.get(i++));
             } else {
                 throw new IllegalArgumentException("Unknown directive: " + directive);
             }
@@ -97,5 +105,23 @@ public class ConfigLoader {
         }
 
         return server;
+    }
+
+    private long parseSize(String value) {
+        value = value.toUpperCase();
+
+        if (value.endsWith("M")) {
+            return Long.parseLong(value.substring(0, value.length() - 1)) * 1024 * 1024;
+        }
+
+        if (value.endsWith("K")) {
+            return Long.parseLong(value.substring(0, value.length() - 1)) * 1024;
+        }
+
+        if (value.endsWith("G")) {
+            return Long.parseLong(value.substring(0, value.length() - 1)) * 1024 * 1024 * 1024;
+        }
+
+        return Long.parseLong(value);
     }
 }
