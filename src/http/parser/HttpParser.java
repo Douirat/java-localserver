@@ -11,15 +11,18 @@ public class HttpParser {
     // between multiple SocketChannel.read() calls.
     private ParseState state = ParseState.REQUEST_LINE;
 
-    private final StringBuilder requestLine =
-            new StringBuilder();
+    private final StringBuilder requestLine = new StringBuilder();
 
-    private final Map<String, String> headers =
-            new HashMap<>();
+    private String method;
+    private String path;
+    private String version;
 
-    private final ByteArrayOutputStream body =
-            new ByteArrayOutputStream();
+    private final Map<String, String> headers = new HashMap<>();
 
+    private final ByteArrayOutputStream body = new ByteArrayOutputStream();
+
+    private int expectedBodyLength = 0;
+    private int receivedBodyLength = 0;
 
     // Parse states of an HTTP request.
     private enum ParseState {
@@ -29,7 +32,15 @@ public class HttpParser {
         COMPLETE
     }
 
-
+    /**
+     * Called every time SocketChannel.read() gives us
+     * new bytes.
+     *
+     * Returns:
+     *
+     * HttpRequest -> request is complete
+     * null -> need more bytes
+     */
     public HttpRequest parse(ByteBuffer buffer) {
 
         // We will consume bytes from the buffer incrementally.
@@ -80,21 +91,44 @@ public class HttpParser {
         return null;
     }
 
-
     private void parseRequestLineByte(byte b) {
+        /**
+         * POST /users HTTP/1.1\r\n
+         * Host: localhost:8080\r\n
+         * Content-Type: application/json\r\n
+         * Content-Length: 31\r\n
+         * \r\n
+         * {"username":"bennacer"}
+         */
 
-        // TODO:
-        // Accumulate bytes until CRLF:
-        //
-        // GET /index.html HTTP/1.1\r\n
-        //
-        // Then extract:
-        //
-        // method  = GET
-        // path    = /index.html
-        // version = HTTP/1.1
+        /**
+         * HTTP/1.1 200 OK\r\n
+         * Content-Type: image/png\r\n
+         * Content-Length: 15234\r\n
+         * \r\n
+         * [BINARY PNG BYTES]
+         */
+
+        requestLine.append((char) b);
+        // HTTP lines end with CRLF.
+        if(requestLine.toString().endsWith("\r\n")){
+            String line = requestLine.substring(0, requestLine.length()-2);
+
+            String[] parts = line.split(" ");
+
+            if (parts.length != 3) {
+                // TODO: make a costum BadRequestException.
+                throw new RuntimeException(
+                        "Invalid request line");
+            }
+
+            method = parts[0];
+            path = parts[1];
+            version = parts[2];
+
+            state = ParseState.HEADERS;
+        }
     }
-
 
     private void parseHeaderByte(byte b) {
 
@@ -110,7 +144,6 @@ public class HttpParser {
         //
         // Then decide whether there is a body.
     }
-
 
     private void parseBodyByte(byte b) {
 
