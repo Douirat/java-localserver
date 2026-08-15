@@ -150,7 +150,7 @@ public class HttpParser {
         currentLine.append((char) b);
 
         if(currentLine.toString().endsWith("\r\n")){
-            String line = currentLine.substring(0, currentLine.length()-2)
+            String line = currentLine.substring(0, currentLine.length()-2);
 
             currentLine.setLength(0);
 
