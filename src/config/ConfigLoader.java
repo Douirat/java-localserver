@@ -67,7 +67,11 @@ public class ConfigLoader {
         TokenReader reader = new TokenReader(tokens);
 
         while (reader.hasMore()) {
-            servers.add(parseServerBlock(reader));
+            try {
+                servers.add(parseServerBlock(reader));
+            } catch (IllegalArgumentException e) {
+                System.err.println("[config] Skipping server block: " + e.getMessage());
+            }
         }
 
         validateNoDuplicatePorts(servers);
@@ -80,11 +84,21 @@ public class ConfigLoader {
 
         ServerConfig server = new ServerConfig();
 
-        while (!reader.peek().equals("}")) {
+        while (reader.hasMore() && !reader.peek().equals("}")) {
+            if (reader.peek().equals("server")) {
+                throw new IllegalArgumentException("Missing closing brace for server block");
+            }
             parseServerDirective(reader, server);
         }
 
-        reader.expect("}");
+        if (!reader.hasMore()) {
+            throw new IllegalArgumentException("Unexpected end of config: missing closing brace for server block");
+        }
+        if (!reader.peek().equals("}")) {
+            throw new IllegalArgumentException("Expected '}' to close server block, got: " + reader.peek());
+        }
+        reader.next();
+
         applyServerDefaults(server);
         return server;
     }
@@ -99,10 +113,22 @@ public class ConfigLoader {
             case "client_max_body_size" -> server.setMaxBodyBytes(parseSize(reader.next()));
             case "error_page" -> server.addErrorPage(reader.nextInt(), reader.next());
             case "location" -> {
-                server.addRoute(parseLocationBlock(reader));
+                RouteConfig route = parseLocationBlock(reader);
+                if (route != null) {
+                    server.addRoute(route);
+                }
                 return;
             }
-            default -> throw new IllegalArgumentException("Unknown server directive: " + directive);
+            default -> {
+                System.err.println("[config] Unknown server directive '" + directive + "', skipping");
+                while (reader.hasMore() && !reader.peek().equals(";") && !reader.peek().equals("}")) {
+                    reader.next();
+                }
+                if (reader.hasMore() && reader.peek().equals(";")){
+                    reader.next();
+                }
+                return;
+            }
         }
         reader.expect(";");
     }
@@ -117,6 +143,12 @@ public class ConfigLoader {
         }
 
         reader.expect("}");
+
+        if (route.getRoot() == null && route.getRedirectCode() == 0) {
+            System.err.println("[config] location '" + route.getPath() + "' has no root, skipping");
+            return null;
+        }
+
         return route;
     }
 
@@ -127,7 +159,7 @@ public class ConfigLoader {
             case "index" -> route.setIndex(reader.next());
             case "upload_dir" -> route.setUploadDir(reader.next());
             case "directory_listing" -> route.setDirectoryListing(reader.next().equals("on"));
-            case "cgi"               -> route.addCgiExtension(reader.next(), reader.next());
+            case "cgi"  -> route.addCgiExtension(reader.next(), reader.next());
             case "methods" -> {
                 while (!reader.peek().equals(";")) {
                     route.addMethod(reader.next());
@@ -139,7 +171,16 @@ public class ConfigLoader {
                     route.setRedirectUrl(reader.next());
                 }
             }
-            default -> throw new IllegalArgumentException("Unknown location directive: " + directive);
+            default -> {
+                System.err.println("[config] Unknown location directive '" + directive + "', skipping");
+                while (reader.hasMore() && !reader.peek().equals(";") && !reader.peek().equals("}")) {
+                    reader.next();
+                }
+                if (reader.hasMore() && reader.peek().equals(";")) {
+                    reader.next();
+                }
+                return;
+            }
         }
         reader.expect(";");
     }
@@ -155,14 +196,16 @@ public class ConfigLoader {
 
     private void validateNoDuplicatePorts(List<ServerConfig> servers) {
         Set<String> seen = new HashSet<>();
-        for (ServerConfig s : servers) {
+        servers.removeIf(s -> {
             for (int port : s.getPorts()) {
                 String key = s.getHost() + ":" + port;
-                if (!seen.add(key)){
-                    throw new IllegalArgumentException("Duplicate host:port: " + key);
+                if (!seen.add(key)) {
+                    System.err.println("[config] Duplicate host:port " + key + ", dropping that server block");
+                    return true;
                 }
             }
-        }
+            return false;
+        });
     }
 
     private long parseSize(String value) {
