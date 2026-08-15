@@ -119,14 +119,15 @@ public class HttpParser {
             String[] parts = line.split(" ");
 
             if (parts.length != 3) {
-                // TODO: make a costum BadRequestException.
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "Invalid request line");
             }
 
             method = parts[0];
             path = parts[1];
             version = parts[2];
+
+            currentLine.setLength(0);
 
             state = ParseState.HEADERS;
         }
@@ -194,7 +195,7 @@ public class HttpParser {
 
     private void parseBodyByte(byte b) {
 
-        // TODO:
+        // TODO: for now we will recieve the body as a normal body of bytes but later i will have to check they image/video type and so on.
         // For Content-Length:
         //
         // read exactly Content-Length bytes.
@@ -202,5 +203,10 @@ public class HttpParser {
         // For chunked encoding:
         //
         // parse the chunk sizes and chunk data.
+        body.write(b);
+        receivedBodyLength++;
+        if(receivedBodyLength == expectedBodyLength){
+            state = ParseState.COMPLETE;
+        }
     }
 }
