@@ -4,7 +4,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import util.TokenReader;
 
 public class ConfigLoader {
     private final Path configPath;
@@ -57,113 +61,108 @@ public class ConfigLoader {
     }
 
     public List<ServerConfig> parse() throws IOException {
+
         List<String> tokens = tokenize();
         List<ServerConfig> servers = new ArrayList<>();
+        TokenReader reader = new TokenReader(tokens);
 
-        int i = 0;
-        while (i < tokens.size()) {
-            if (!tokens.get(i).equals("server")) {
-                throw new IllegalArgumentException("Expected 'server'");
-            }
-
-            i++;
-
-            if (i >= tokens.size() || !tokens.get(i).equals("{")) {
-                throw new IllegalArgumentException("Expected '{'");
-            }
-
-            i++;
-
-            ServerConfig server = new ServerConfig();
-            
-            while (i < tokens.size() && !tokens.get(i).equals("}")) {
-                String directive = tokens.get(i++);
-
-                if (directive.equals("host")) {
-                    server.setHost(tokens.get(i++));
-                } else if (directive.equals("port")) {
-                    server.addPort(Integer.parseInt(tokens.get(i++)));
-                } else if (directive.equals("default_server")) {
-                    server.setDefaultServer(tokens.get(i++).equals("on"));
-                } else if (directive.equals("client_max_body_size")) {
-                    server.setMaxBodyBytes(parseSize(tokens.get(i++)));
-                } else if (directive.equals("server_name")) {
-                    server.setServerName(tokens.get(i++));
-                } else if (directive.equals("error_page")) {
-                    server.addErrorPage(Integer.parseInt(tokens.get(i++)), tokens.get(i++));
-                } else if (directive.equals("location")) {
-
-                    RouteConfig route = new RouteConfig();
-                    route.setPath(tokens.get(i++));
-
-                    if (!tokens.get(i++).equals("{")) {
-                        throw new IllegalArgumentException("Expected '{' after location path");
-                    }
-
-                    while (i < tokens.size() && !tokens.get(i).equals("}")) {
-
-                        String locDirective = tokens.get(i++);
-
-                        if (locDirective.equals("root")) {
-                            route.setRoot(tokens.get(i++));
-                        } else if (locDirective.equals("index")) {
-                            route.setIndex(tokens.get(i++));
-                        } else if (locDirective.equals("methods")) {
-                            while (i < tokens.size() && !tokens.get(i).equals(";")) {
-                                route.addMethod(tokens.get(i++));
-                            }
-                        } else if (locDirective.equals("return")) {
-                            route.setRedirectCode(Integer.parseInt(tokens.get(i++)));
-                            route.setRedirectUrl(tokens.get(i++));
-                        } else if (locDirective.equals("upload_dir")) {
-                            route.setUploadDir(tokens.get(i++));
-                        } else if (locDirective.equals("cgi")) {
-                            route.addCgiExtension(tokens.get(i++), tokens.get(i++));
-                        } else if (locDirective.equals("directory_listing")) {
-                            route.setDirectoryListing(tokens.get(i++).equals("on"));
-                        } else {
-                            throw new IllegalArgumentException("Unknown directive in location: " + locDirective);
-                        }
-
-                        if (i >= tokens.size() || !tokens.get(i).equals(";")) {
-                            throw new IllegalArgumentException("Expected ';' in location " + route.getPath());
-                        }
-
-                        i++;
-                    }
-
-                    if (i >= tokens.size() || !tokens.get(i).equals("}")) {
-                        throw new IllegalArgumentException("Expected '}' at the end of location block");
-                    }
-
-                    i++;
-
-                    server.addRoute(route);
-                    continue;
-
-                } else {
-
-                    throw new IllegalArgumentException(
-                            "Unknown directive: " + directive);
-                }
-
-                if (i >= tokens.size() || !tokens.get(i).equals(";")) {
-                    throw new IllegalArgumentException(
-                            "Expected ';' after directive: " + directive);
-                }
-
-                i++;
-            }
-
-            if (i >= tokens.size() || !tokens.get(i).equals("}")) {
-                throw new IllegalArgumentException("Expected '}'");
-            }
-
-            i++;
-            servers.add(server);
+        while (reader.hasMore()) {
+            servers.add(parseServerBlock(reader));
         }
 
+        validateNoDuplicatePorts(servers);
         return servers;
+    }
+
+    private ServerConfig parseServerBlock(TokenReader reader) {
+        reader.expect("server");
+        reader.expect("{");
+
+        ServerConfig server = new ServerConfig();
+
+        while (!reader.peek().equals("}")) {
+            parseServerDirective(reader, server);
+        }
+
+        reader.expect("}");
+        applyServerDefaults(server);
+        return server;
+    }
+
+    private void parseServerDirective(TokenReader reader, ServerConfig server) {
+        String directive = reader.next();
+        switch (directive) {
+            case "host" -> server.setHost(reader.next());
+            case "port" -> server.addPort(reader.nextInt());
+            case "server_name" -> server.setServerName(reader.next());
+            case "default_server" -> server.setDefaultServer(reader.next().equals("on"));
+            case "client_max_body_size" -> server.setMaxBodyBytes(parseSize(reader.next()));
+            case "error_page" -> server.addErrorPage(reader.nextInt(), reader.next());
+            case "location" -> {
+                server.addRoute(parseLocationBlock(reader));
+                return;
+            }
+            default -> throw new IllegalArgumentException("Unknown server directive: " + directive);
+        }
+        reader.expect(";");
+    }
+
+    private RouteConfig parseLocationBlock(TokenReader reader) {
+        RouteConfig route = new RouteConfig();
+        route.setPath(reader.next());
+        reader.expect("{");
+
+        while (!reader.peek().equals("}")) {
+            parseLocationDirective(reader, route);
+        }
+
+        reader.expect("}");
+        return route;
+    }
+
+    private void parseLocationDirective(TokenReader reader, RouteConfig route) {
+        String directive = reader.next();
+        switch (directive) {
+            case "root" -> route.setRoot(reader.next());
+            case "index" -> route.setIndex(reader.next());
+            case "upload_dir" -> route.setUploadDir(reader.next());
+            case "directory_listing" -> route.setDirectoryListing(reader.next().equals("on"));
+            case "cgi"               -> route.addCgiExtension(reader.next(), reader.next());
+            case "methods" -> {
+                while (!reader.peek().equals(";")) {
+                    route.addMethod(reader.next());
+                }
+            }
+            case "return" -> {
+                route.setRedirectCode(reader.nextInt());
+                if (!reader.peek().equals(";")) {
+                    route.setRedirectUrl(reader.next());
+                }
+            }
+            default -> throw new IllegalArgumentException("Unknown location directive: " + directive);
+        }
+        reader.expect(";");
+    }
+
+    private void applyServerDefaults(ServerConfig server) {
+        if (server.getHost() == null) {
+            server.setHost("0.0.0.0");
+        }
+        if (server.getPorts().isEmpty()){
+            throw new IllegalArgumentException("Server block missing 'port'");
+        }
+    }
+
+    private void validateNoDuplicatePorts(List<ServerConfig> servers) {
+        Set<String> seen = new HashSet<>();
+        for (ServerConfig s : servers) {
+            for (int port : s.getPorts()) {
+                String key = s.getHost() + ":" + port;
+                if (!seen.add(key)){
+                    throw new IllegalArgumentException("Duplicate host:port: " + key);
+                }
+            }
+        }
     }
 
     private long parseSize(String value) {
