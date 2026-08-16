@@ -23,6 +23,7 @@ public class ConfigLoader {
 
     public List<String> tokenize() throws IOException {
         String content = read();
+        System.out.println("--------> \n"+ content);
         List<String> tokens = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         boolean comment = false;

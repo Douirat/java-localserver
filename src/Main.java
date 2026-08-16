@@ -37,7 +37,6 @@ public class Main {
                     System.out.println("  Upload Dir: " + route.getUploadDir());
                 });
             }
-            
             // 3. Create the server using the configuration
             // Server server = new Server(config);
 
