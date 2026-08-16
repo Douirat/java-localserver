@@ -4,6 +4,7 @@ import config.ServerConfig;
 import http.connection.ConnectionState;
 import http.request.Request;
 import http.response.Response;
+import http.router.Router;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -18,6 +19,7 @@ public class Server {
     private final String host;
     private final List<Integer> ports;
     private final ServerConfig config;
+    private final Router router = new Router();
 
     private Selector selector;
 
