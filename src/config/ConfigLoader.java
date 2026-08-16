@@ -24,7 +24,6 @@ public class ConfigLoader {
 
     public List<String> tokenize() throws IOException {
         String content = read();
-        System.out.println("--------> \n"+ content);
         List<String> tokens = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         boolean comment = false;
@@ -63,7 +62,7 @@ public class ConfigLoader {
     }
 
     public List<ServerConfig> parse() throws IOException {
-        
+
         List<String> tokens = tokenize();
         List<ServerConfig> servers = new ArrayList<>();
         TokenReader reader = new TokenReader(tokens);
@@ -79,7 +78,12 @@ public class ConfigLoader {
             }
         }
 
-        return servers;
+        List<ServerConfig> validServers = validateAndFilter(servers);
+        if (validServers.isEmpty()) {
+            throw new ConfigParsingException("No valid server configurations found to start.");
+        }
+
+        return validServers;
     }
 
     private ServerConfig parseServerBlock(TokenReader reader) {
@@ -98,7 +102,7 @@ public class ConfigLoader {
         if (!reader.hasMore()) {
             throw new ConfigParsingException("Unexpected end of config: missing closing brace for server block");
         }
-        
+
         reader.expect("}");
         applyServerDefaults(server);
         return server;
@@ -113,7 +117,11 @@ public class ConfigLoader {
                 if (port < 1 || port > 65535) {
                     throw new ConfigParsingException("Invalid port number: " + port + ". Must be between 1 and 65535.");
                 }
-                server.addPort(port);
+                if (server.getPorts().contains(port)) {
+                    System.err.println("[config warning] Duplicate port '" + port + "' for host '" + server.getHost() + "', skipping");
+                } else {
+                    server.addPort(port);
+                }
             }
             case "server_name" -> server.setServerName(reader.next());
             case "default_server" -> server.setDefaultServer(reader.next().equals("on"));
@@ -180,7 +188,8 @@ public class ConfigLoader {
                 while (reader.hasMore() && !reader.peek().equals(";")) {
                     String method = reader.next().toUpperCase();
                     if (!method.equals("GET") && !method.equals("POST") && !method.equals("DELETE")) {
-                        throw new ConfigParsingException("Unsupported HTTP method: " + method + ". Supported methods are GET, POST, DELETE.");
+                        throw new ConfigParsingException(
+                                "Unsupported HTTP method: " + method + ". Supported methods are GET, POST, DELETE.");
                     }
                     route.addMethod(method);
                 }
@@ -216,6 +225,34 @@ public class ConfigLoader {
         if (server.getPorts().isEmpty()) {
             throw new ConfigParsingException("Server block missing 'port' directive");
         }
+    }
+
+    private List<ServerConfig> validateAndFilter(List<ServerConfig> servers) {
+        Set<String> seenNames = new HashSet<>();
+        Set<String> defaultHostPort = new HashSet<>();
+
+        for (ServerConfig server : servers) {
+            Set<Integer> uniquePorts = new HashSet<>(server.getPorts());
+
+            for (int port : uniquePorts) {
+                String host = server.getHost();
+                String name = server.getServerName();
+
+                String nameKey = host + ":" + port + ":" + (name != null ? name : "");
+                if (!seenNames.add(nameKey)) {
+                    throw new ConfigParsingException(
+                            "Duplicate server_name '" + server.getServerName() + "' for " + host + ":" + port);
+                }
+
+                if (server.isDefaultServer()) {
+                    String defaultKey = host + ":" + port;
+                    if (!defaultHostPort.add(defaultKey)) {
+                        throw new ConfigParsingException("Multiple default servers for " + host + ":" + port);
+                    }
+                }
+            }
+        }
+        return servers;
     }
 
     private long parseSize(String value) {
