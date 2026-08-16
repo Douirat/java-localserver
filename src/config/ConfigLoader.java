@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import exceptions.ConfigParsingException;
 import util.TokenReader;
 
 public class ConfigLoader {
@@ -61,7 +62,7 @@ public class ConfigLoader {
     }
 
     public List<ServerConfig> parse() throws IOException {
-
+        
         List<String> tokens = tokenize();
         List<ServerConfig> servers = new ArrayList<>();
         TokenReader reader = new TokenReader(tokens);
@@ -69,12 +70,14 @@ public class ConfigLoader {
         while (reader.hasMore()) {
             try {
                 servers.add(parseServerBlock(reader));
-            } catch (IllegalArgumentException e) {
-                System.err.println("[config] Skipping server block: " + e.getMessage());
+            } catch (ConfigParsingException e) {
+                System.err.println("[config error] Skipping invalid server block: " + e.getMessage());
+                while (reader.hasMore() && !reader.peek().equals("server")) {
+                    reader.next();
+                }
             }
         }
 
-        validateNoDuplicatePorts(servers);
         return servers;
     }
 
@@ -86,19 +89,16 @@ public class ConfigLoader {
 
         while (reader.hasMore() && !reader.peek().equals("}")) {
             if (reader.peek().equals("server")) {
-                throw new IllegalArgumentException("Missing closing brace for server block");
+                throw new ConfigParsingException("Missing closing brace for server block");
             }
             parseServerDirective(reader, server);
         }
 
         if (!reader.hasMore()) {
-            throw new IllegalArgumentException("Unexpected end of config: missing closing brace for server block");
+            throw new ConfigParsingException("Unexpected end of config: missing closing brace for server block");
         }
-        if (!reader.peek().equals("}")) {
-            throw new IllegalArgumentException("Expected '}' to close server block, got: " + reader.peek());
-        }
-        reader.next();
-
+        
+        reader.expect("}");
         applyServerDefaults(server);
         return server;
     }
@@ -107,24 +107,40 @@ public class ConfigLoader {
         String directive = reader.next();
         switch (directive) {
             case "host" -> server.setHost(reader.next());
-            case "port" -> server.addPort(reader.nextInt());
+            case "port" -> {
+                int port = reader.nextInt();
+                if (port < 1 || port > 65535) {
+                    throw new ConfigParsingException("Invalid port number: " + port + ". Must be between 1 and 65535.");
+                }
+                server.addPort(port);
+            }
             case "server_name" -> server.setServerName(reader.next());
             case "default_server" -> server.setDefaultServer(reader.next().equals("on"));
-            case "client_max_body_size" -> server.setMaxBodyBytes(parseSize(reader.next()));
-            case "error_page" -> server.addErrorPage(reader.nextInt(), reader.next());
+            case "client_max_body_size" -> {
+                long size = parseSize(reader.next());
+                if (size < 0) {
+                    throw new ConfigParsingException("client_max_body_size cannot be negative.");
+                }
+                server.setMaxBodyBytes(size);
+            }
+            case "error_page" -> {
+                int code = reader.nextInt();
+                if (code < 100 || code > 599) {
+                    throw new ConfigParsingException("Invalid HTTP status code for error_page: " + code);
+                }
+                server.addErrorPage(code, reader.next());
+            }
             case "location" -> {
                 RouteConfig route = parseLocationBlock(reader);
-                if (route != null) {
-                    server.addRoute(route);
-                }
+                server.addRoute(route);
                 return;
             }
             default -> {
-                System.err.println("[config] Unknown server directive '" + directive + "', skipping");
+                System.err.println("[config warning] Unknown server directive '" + directive + "', skipping");
                 while (reader.hasMore() && !reader.peek().equals(";") && !reader.peek().equals("}")) {
                     reader.next();
                 }
-                if (reader.hasMore() && reader.peek().equals(";")){
+                if (reader.hasMore() && reader.peek().equals(";")) {
                     reader.next();
                 }
                 return;
@@ -138,15 +154,14 @@ public class ConfigLoader {
         route.setPath(reader.next());
         reader.expect("{");
 
-        while (!reader.peek().equals("}")) {
+        while (reader.hasMore() && !reader.peek().equals("}")) {
             parseLocationDirective(reader, route);
         }
 
         reader.expect("}");
 
         if (route.getRoot() == null && route.getRedirectCode() == 0) {
-            System.err.println("[config] location '" + route.getPath() + "' has no root, skipping");
-            return null;
+            throw new ConfigParsingException("Location '" + route.getPath() + "' has no root or return directive");
         }
 
         return route;
@@ -159,20 +174,28 @@ public class ConfigLoader {
             case "index" -> route.setIndex(reader.next());
             case "upload_dir" -> route.setUploadDir(reader.next());
             case "directory_listing" -> route.setDirectoryListing(reader.next().equals("on"));
-            case "cgi"  -> route.addCgiExtension(reader.next(), reader.next());
+            case "cgi" -> route.addCgiExtension(reader.next(), reader.next());
             case "methods" -> {
-                while (!reader.peek().equals(";")) {
-                    route.addMethod(reader.next());
+                while (reader.hasMore() && !reader.peek().equals(";")) {
+                    String method = reader.next().toUpperCase();
+                    if (!method.equals("GET") && !method.equals("POST") && !method.equals("DELETE")) {
+                        throw new ConfigParsingException("Unsupported HTTP method: " + method + ". Supported methods are GET, POST, DELETE.");
+                    }
+                    route.addMethod(method);
                 }
             }
             case "return" -> {
-                route.setRedirectCode(reader.nextInt());
-                if (!reader.peek().equals(";")) {
+                int code = reader.nextInt();
+                if (code < 100 || code > 599) {
+                    throw new ConfigParsingException("Invalid HTTP status code for return directive: " + code);
+                }
+                route.setRedirectCode(code);
+                if (reader.hasMore() && !reader.peek().equals(";")) {
                     route.setRedirectUrl(reader.next());
                 }
             }
             default -> {
-                System.err.println("[config] Unknown location directive '" + directive + "', skipping");
+                System.err.println("[config warning] Unknown location directive '" + directive + "', skipping");
                 while (reader.hasMore() && !reader.peek().equals(";") && !reader.peek().equals("}")) {
                     reader.next();
                 }
@@ -189,40 +212,26 @@ public class ConfigLoader {
         if (server.getHost() == null) {
             server.setHost("0.0.0.0");
         }
-        if (server.getPorts().isEmpty()){
-            throw new IllegalArgumentException("Server block missing 'port'");
+        if (server.getPorts().isEmpty()) {
+            throw new ConfigParsingException("Server block missing 'port' directive");
         }
-    }
-
-    private void validateNoDuplicatePorts(List<ServerConfig> servers) {
-        Set<String> seen = new HashSet<>();
-        servers.removeIf(s -> {
-            for (int port : s.getPorts()) {
-                String key = s.getHost() + ":" + port;
-                if (!seen.add(key)) {
-                    System.err.println("[config] Duplicate host:port " + key + ", dropping that server block");
-                    return true;
-                }
-            }
-            return false;
-        });
     }
 
     private long parseSize(String value) {
         value = value.toUpperCase();
-
-        if (value.endsWith("M")) {
-            return Long.parseLong(value.substring(0, value.length() - 1)) * 1024 * 1024;
+        try {
+            if (value.endsWith("M") && value.length() > 1) {
+                return Long.parseLong(value.substring(0, value.length() - 1)) * 1024 * 1024;
+            }
+            if (value.endsWith("K") && value.length() > 1) {
+                return Long.parseLong(value.substring(0, value.length() - 1)) * 1024;
+            }
+            if (value.endsWith("G") && value.length() > 1) {
+                return Long.parseLong(value.substring(0, value.length() - 1)) * 1024 * 1024 * 1024;
+            }
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            throw new ConfigParsingException("Invalid size format for client_max_body_size: " + value, e);
         }
-
-        if (value.endsWith("K")) {
-            return Long.parseLong(value.substring(0, value.length() - 1)) * 1024;
-        }
-
-        if (value.endsWith("G")) {
-            return Long.parseLong(value.substring(0, value.length() - 1)) * 1024 * 1024 * 1024;
-        }
-
-        return Long.parseLong(value);
     }
 }
