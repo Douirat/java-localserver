@@ -115,7 +115,7 @@ public class Server {
         // CREATE STATE FOR THIS SPECIFIC CLIENT
         // ========================================================
 
-        ConnectionState state = new ConnectionState();
+        ConnectionState state = new ConnectionState(client);
 
         // ========================================================
         // REGISTER THIS CLIENT WITH THE SELECTOR
