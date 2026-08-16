@@ -192,7 +192,7 @@ public class Server {
         }
 
         conn.setRequest(request);
-        Response response = handle(request);
+        Response response = router.route(request, config);
         conn.setResponse(response);
         conn.setWriteBuffer(ByteBuffer.wrap(response.toBytes()));
 
