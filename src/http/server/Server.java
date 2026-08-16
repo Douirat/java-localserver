@@ -2,9 +2,13 @@ package http.server;
 
 import config.ServerConfig;
 import http.connection.ConnectionState;
+import http.request.Request;
+import http.response.Response;
+import http.router.Router;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -14,12 +18,15 @@ public class Server {
 
     private final String host;
     private final List<Integer> ports;
+    private final ServerConfig config;
+    private final Router router = new Router();
 
     private Selector selector;
 
     private final List<ServerSocketChannel> serverChannels = new ArrayList<>();
 
     public Server(ServerConfig config) {
+        this.config = config;
         this.host = config.getHost();
         this.ports = new ArrayList<>(config.getPorts());
     }
@@ -79,10 +86,24 @@ public class Server {
                 // Remove it because we are now processing this event.
                 iterator.remove();
 
-                // NEW CLIENT CONNECTED
-                if (key.isAcceptable()) {
-                    acceptClient(key);
+                if (!key.isValid()) {
+                    continue;
                 }
+
+                // NEW CLIENT CONNECTED
+                try {
+                    if (key.isAcceptable()) {
+                        acceptClient(key);
+                    } else if (key.isReadable()) {
+                        read(key);
+                    } else if (key.isWritable()) {
+                        write(key);
+                    }
+                } catch (IOException ex) {
+                    // I/O error on this client only -> drop it, keep serving everyone else
+                    closeQuietly(key);
+                }
+
             }
 
             selector.selectedKeys().clear();
@@ -115,7 +136,7 @@ public class Server {
         // CREATE STATE FOR THIS SPECIFIC CLIENT
         // ========================================================
 
-        ConnectionState state = new ConnectionState();
+        ConnectionState state = new ConnectionState(client);
 
         // ========================================================
         // REGISTER THIS CLIENT WITH THE SELECTOR
@@ -144,6 +165,77 @@ public class Server {
         // ConnectionState A
         //
         clientKey.attach(state);
+    }
+
+    private void read(SelectionKey key) throws IOException {
+        ConnectionState conn = (ConnectionState) key.attachment();
+        SocketChannel client = conn.getClient();
+        ByteBuffer buf = conn.getReadBuffer();
+
+        int n = client.read(buf); // exactly one read() call per select wakeup
+        if (n == -1) {
+            closeQuietly(key);
+            return;
+        }
+        if (n == 0) {
+            return;
+        }
+
+        conn.updateActivity();
+
+        buf.flip();
+        Request request = conn.getParser().parse(buf);
+        buf.compact(); // keep any unconsumed bytes for the next read (pipelining)
+
+        if (request == null) {
+            return; // request incomplete, wait for more bytes
+        }
+
+        conn.setRequest(request);
+        Response response = router.route(request, config);
+        conn.setResponse(response);
+        conn.setWriteBuffer(ByteBuffer.wrap(response.toBytes()));
+
+        key.interestOps(SelectionKey.OP_WRITE);
+    }
+
+    private void write(SelectionKey key) throws IOException {
+        ConnectionState conn = (ConnectionState) key.attachment();
+        SocketChannel client = conn.getClient();
+        ByteBuffer buf = conn.getWriteBuffer();
+
+        client.write(buf); // exactly one write() call per select wakeup
+
+        if (buf.hasRemaining()) {
+            return; // not fully flushed yet, stay in OP_WRITE
+        }
+
+        // response fully sent, reset for the next request on this connection
+        conn.getParser().reset();
+        conn.getReadBuffer().clear();
+        conn.setWriteBuffer(null);
+        key.interestOps(SelectionKey.OP_READ);
+    }
+
+    /**
+     * TODO: replace with real routing — Router.resolveRoute(config,
+     * request.getPath()),
+     * then static file serving / CGI / redirect based on the matched RouteConfig.
+     * Stub keeps the read/write loop testable end-to-end right now.
+     */
+    private Response handle(Request request) {
+        Response response = new Response(200, "OK");
+        response.addHeader("Content-Type", "text/plain");
+        response.setBody(request.getMethod() + " " + request.getPath() + " received\n");
+        return response;
+    }
+
+    private void closeQuietly(SelectionKey key) {
+        try {
+            key.channel().close();
+        } catch (IOException ignored) {
+        }
+        key.cancel();
     }
 
     public void stop() throws IOException {

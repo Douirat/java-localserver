@@ -1,6 +1,9 @@
 package http.router;
 
-public interface Routing {
+import config.ServerConfig;
+import http.request.Request;
+import http.response.Response;
 
-    
+public interface Routing {
+    Response route(Request request, ServerConfig server);
 }

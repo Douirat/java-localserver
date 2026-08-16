@@ -1,7 +1,5 @@
 package http.connection;
 
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
@@ -16,6 +14,10 @@ public class ConnectionState {
 
         // Bytes received from THIS client.
         ByteBuffer readBuffer = ByteBuffer.allocate(8192);
+
+        // Bytes of the serialized Response, pending write. Null until a request is
+        // complete.
+        private ByteBuffer writeBuffer;
 
         // Stateful parser for this specific connection.
         private final HttpParser parser = new HttpParser();
@@ -45,6 +47,14 @@ public class ConnectionState {
 
         public ByteBuffer getReadBuffer() {
                 return readBuffer;
+        }
+
+        public ByteBuffer getWriteBuffer() {
+                return writeBuffer;
+        }
+
+        public void setWriteBuffer(ByteBuffer writeBuffer) {
+                this.writeBuffer = writeBuffer;
         }
 
         public HttpParser getParser() {

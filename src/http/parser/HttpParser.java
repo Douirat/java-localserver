@@ -1,11 +1,11 @@
 package http.parser;
 
 import java.io.ByteArrayOutputStream;
-import java.net.http.HttpRequest;
 import java.nio.ByteBuffer;
 import java.util.*;
 
 import exceptions.BadRequestException;
+import http.request.Request;
 
 public class HttpParser {
 
@@ -43,7 +43,7 @@ public class HttpParser {
      * HttpRequest -> request is complete
      * null -> need more bytes
      */
-    public HttpRequest parse(ByteBuffer buffer) {
+    public Request parse(ByteBuffer buffer) {
 
         // We will consume bytes from the buffer incrementally.
         while (buffer.hasRemaining()) {
@@ -51,24 +51,11 @@ public class HttpParser {
             byte currentByte = buffer.get();
 
             switch (state) {
-
-                case REQUEST_LINE:
-                    parseRequestLineByte(currentByte);
-                    break;
-
-                case HEADERS:
-                    parseHeaderByte(currentByte);
-                    break;
-
-                case BODY:
-                    parseBodyByte(currentByte);
-                    break;
-
-                case COMPLETE:
-                    // The request is already complete.
-                    // The caller should create/reset the parser
-                    // for the next request if keep-alive is used.
-                    break;
+                case REQUEST_LINE -> parseRequestLineByte(currentByte);
+                case HEADERS -> parseHeaderByte(currentByte);
+                case BODY -> parseBodyByte(currentByte);
+                case COMPLETE -> {
+                    /* caller should reset() before parsing a new request */ }
             }
 
             if (state == ParseState.COMPLETE) {
@@ -90,7 +77,36 @@ public class HttpParser {
         // Later another read happens and parse()
         // continues from the previous state.
 
+        if (state == ParseState.COMPLETE) {
+            return buildRequest();
+        }
+
         return null;
+    }
+
+    private Request buildRequest() {
+        Request request = new Request();
+        request.setRequestLine(new String[] { method, path, version });
+        for (Map.Entry<String, String> h : headers.entrySet()) {
+            request.addHeader(h.getKey(), h.getValue());
+        }
+        if (body.size() > 0) {
+            request.setBody(body.toByteArray());
+        }
+        return request;
+    }
+
+    /** Call before parsing the next request on a keep-alive connection. */
+    public void reset() {
+        state = ParseState.REQUEST_LINE;
+        currentLine.setLength(0);
+        method = null;
+        path = null;
+        version = null;
+        headers.clear();
+        body.reset();
+        expectedBodyLength = 0;
+        receivedBodyLength = 0;
     }
 
     private void parseRequestLineByte(byte b) {
@@ -149,28 +165,23 @@ public class HttpParser {
 
         currentLine.append((char) b);
 
-        if(currentLine.toString().endsWith("\r\n")){
-            String line = currentLine.substring(0, currentLine.length()-2);
+        if (currentLine.toString().endsWith("\r\n")) {
+            String line = currentLine.substring(0, currentLine.length() - 2);
 
             currentLine.setLength(0);
 
             /**
-            *Empty line means:
-            *\r\n
-            *Therefore the headers are finished.
-            */
-            if(line.isEmpty()){
+             * Empty line means:
+             * \r\n
+             * Therefore the headers are finished.
+             */
+            if (line.isEmpty()) {
                 String contentLength = headers.get("content-length");
-                if(contentLength != null){
+                if (contentLength != null) {
                     expectedBodyLength = Integer.parseInt(contentLength);
-                    if(expectedBodyLength > 0){
-
-                    }else {
-                        state = ParseState.COMPLETE;
-                    }
-                }else{
-                    // No Content-Length means no body
-                    // in this basic version.
+                    // BUG FIX: this branch used to be empty, parser never left HEADERS
+                    state = (expectedBodyLength > 0) ? ParseState.BODY : ParseState.COMPLETE;
+                } else {
                     state = ParseState.COMPLETE;
                 }
                 return;
@@ -182,20 +193,20 @@ public class HttpParser {
             //
             // Content-Length: 5
             int colon = line.indexOf(":");
-            if(colon <=0){
+            if (colon <= 0) {
                 throw new BadRequestException("Invalid header");
             }
             String name = line.substring(0, colon).trim().toLowerCase();
-            String value = line.substring(colon+1).trim();
+            String value = line.substring(colon + 1).trim();
             headers.put(name, value);
         }
-
 
     }
 
     private void parseBodyByte(byte b) {
 
-        // TODO: for now we will recieve the body as a normal body of bytes but later i will have to check they image/video type and so on.
+        // TODO: for now we will recieve the body as a normal body of bytes but later i
+        // will have to check they image/video type and so on.
         // For Content-Length:
         //
         // read exactly Content-Length bytes.
@@ -205,7 +216,7 @@ public class HttpParser {
         // parse the chunk sizes and chunk data.
         body.write(b);
         receivedBodyLength++;
-        if(receivedBodyLength == expectedBodyLength){
+        if (receivedBodyLength == expectedBodyLength) {
             state = ParseState.COMPLETE;
         }
     }
