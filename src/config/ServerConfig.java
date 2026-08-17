@@ -7,13 +7,13 @@ import java.util.Map;
 
 public class ServerConfig {
 
-    private String host;
+    private String host = "0.0.0.0";
     private final List<Integer> ports = new ArrayList<>();
     private boolean defaultServer;
 
     private String serverName;
     private final Map<Integer, String> errorPages = new HashMap<>();
-    private long maxBodyBytes;
+    private long maxBodyBytes = 1024 * 1024L;
     private final List<RouteConfig> routes = new ArrayList<>();
 
     public String getHost() {

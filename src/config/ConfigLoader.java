@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import exceptions.ConfigParsingException;
@@ -104,7 +105,10 @@ public class ConfigLoader {
         }
 
         reader.expect("}");
-        applyServerDefaults(server);
+
+        if (server.getPorts().isEmpty()) {
+            throw new ConfigParsingException("Server block missing 'port' directive");
+        }
         return server;
     }
 
@@ -118,7 +122,8 @@ public class ConfigLoader {
                     throw new ConfigParsingException("Invalid port number: " + port + ". Must be between 1 and 65535.");
                 }
                 if (server.getPorts().contains(port)) {
-                    System.err.println("[config warning] Duplicate port '" + port + "' for host '" + server.getHost() + "', skipping");
+                    System.err.println("[config warning] Duplicate port '" + port + "' for host '" + server.getHost()
+                            + "', skipping");
                 } else {
                     server.addPort(port);
                 }
@@ -140,8 +145,14 @@ public class ConfigLoader {
                 server.addErrorPage(code, reader.next());
             }
             case "location" -> {
-                RouteConfig route = parseLocationBlock(reader);
-                server.addRoute(route);
+                try {
+                    RouteConfig route = parseLocationBlock(reader);
+                    server.addRoute(route);
+                } catch (ConfigParsingException e) {
+                    System.err.println("[config warning] Skipping invalid location: " + e.getMessage());
+                    skipCurrentBlock(reader);
+                }
+
                 return;
             }
             default -> {
@@ -158,6 +169,23 @@ public class ConfigLoader {
         reader.expect(";");
     }
 
+    private void skipCurrentBlock(TokenReader reader) {
+        int depth = 0;
+
+        while (reader.hasMore()) {
+            String token = reader.next();
+
+            if (token.equals("{")) {
+                depth++;
+            } else if (token.equals("}")) {
+                if (depth == 0) {
+                    return;
+                }
+                depth--;
+            }
+        }
+    }
+
     private RouteConfig parseLocationBlock(TokenReader reader) {
         RouteConfig route = new RouteConfig();
         route.setPath(reader.next());
@@ -166,12 +194,16 @@ public class ConfigLoader {
         while (reader.hasMore() && !reader.peek().equals("}")) {
             parseLocationDirective(reader, route);
         }
-
-        reader.expect("}");
-
+        
         if (route.getRoot() == null && route.getRedirectCode() == 0) {
             throw new ConfigParsingException("Location '" + route.getPath() + "' has no root or return directive");
         }
+
+        if (route.getMethods().isEmpty() && route.getRedirectCode() == 0) {
+            throw new ConfigParsingException("Location '" + route.getPath() + "' has no methods defined");
+        }
+
+        reader.expect("}");
 
         return route;
     }
@@ -183,7 +215,17 @@ public class ConfigLoader {
             case "index" -> route.setIndex(reader.next());
             case "upload_dir" -> route.setUploadDir(reader.next());
             case "directory_listing" -> route.setDirectoryListing(reader.next().equals("on"));
-            case "cgi" -> route.addCgiExtension(reader.next(), reader.next());
+            case "cgi" -> {
+                String ext = reader.next();
+                String interpreter = reader.next();
+                if (!ext.startsWith(".")) {
+                    throw new ConfigParsingException("CGI extension must start with '.', got: '" + ext + "'");
+                }
+                if (interpreter.isBlank()) {
+                    throw new ConfigParsingException("CGI interpreter path cannot be empty for extension: " + ext);
+                }
+                route.addCgiExtension(ext, interpreter);
+            }
             case "methods" -> {
                 while (reader.hasMore() && !reader.peek().equals(";")) {
                     String method = reader.next().toUpperCase();
@@ -218,41 +260,76 @@ public class ConfigLoader {
         reader.expect(";");
     }
 
-    private void applyServerDefaults(ServerConfig server) {
-        if (server.getHost() == null) {
-            server.setHost("0.0.0.0");
-        }
-        if (server.getPorts().isEmpty()) {
-            throw new ConfigParsingException("Server block missing 'port' directive");
-        }
-    }
-
     private List<ServerConfig> validateAndFilter(List<ServerConfig> servers) {
         Set<String> seenNames = new HashSet<>();
         Set<String> defaultHostPort = new HashSet<>();
+        List<ServerConfig> validServers = new ArrayList<>();
 
         for (ServerConfig server : servers) {
-            Set<Integer> uniquePorts = new HashSet<>(server.getPorts());
+            boolean valid = true;
+            String host = server.getHost();
+            String name = server.getServerName();
 
-            for (int port : uniquePorts) {
-                String host = server.getHost();
-                String name = server.getServerName();
+            boolean hasServerName = name != null && !name.trim().isEmpty();
 
-                String nameKey = host + ":" + port + ":" + (name != null ? name : "");
-                if (!seenNames.add(nameKey)) {
-                    throw new ConfigParsingException(
-                            "Duplicate server_name '" + server.getServerName() + "' for " + host + ":" + port);
-                }
+            for (int port : server.getPorts()) {
+                String hostPortKey = host + ":" + port;
 
-                if (server.isDefaultServer()) {
-                    String defaultKey = host + ":" + port;
-                    if (!defaultHostPort.add(defaultKey)) {
-                        throw new ConfigParsingException("Multiple default servers for " + host + ":" + port);
+                if (hasServerName) {
+                    String nameKey = hostPortKey + ":" + name;
+
+                    if (!seenNames.add(nameKey)) {
+                        System.err.println("[config error] Duplicate server_name '" + name + "' for " + hostPortKey);
+                        valid = false;
+                        break;
                     }
                 }
+
+                if (server.isDefaultServer() && !defaultHostPort.add(hostPortKey)) {
+                    System.err.println("[config error] Multiple default servers for " + hostPortKey);
+                    valid = false;
+                    break;
+                }
+            }
+
+            // Check error_page files exist on disk
+            for (Map.Entry<Integer, String> entry : server.getErrorPages().entrySet()) {
+                if (!new java.io.File(entry.getValue()).exists()) {
+                    System.err.println("[config error] error_page " + entry.getKey()
+                            + " file not found: '" + entry.getValue() + "'");
+                    valid = false;
+                }
+            }
+
+            // Check route root and upload_dir exist on disk
+            for (RouteConfig route : server.getRoutes()) {
+                if (route.getRoot() != null && !new java.io.File(route.getRoot()).exists()) {
+                    System.err.println("[config error] route '" + route.getPath()
+                            + "' root '" + route.getRoot() + "' does not exist");
+                    valid = false;
+                }
+                if (route.getUploadDir() != null && !new java.io.File(route.getUploadDir()).exists()) {
+                    System.err.println("[config error] route '" + route.getPath()
+                            + "' upload_dir '" + route.getUploadDir() + "' does not exist");
+                    valid = false;
+                }
+            }
+
+            // Warn if no server on this port is marked as default
+            for (int port : server.getPorts()) {
+                String hostPortKey = host + ":" + port;
+                if (!server.isDefaultServer() && !defaultHostPort.contains(hostPortKey)) {
+                    System.err.println("[config warning] No default_server defined for " + hostPortKey);
+                }
+            }
+
+            if (valid) {
+                validServers.add(server);
+            } else {
+                System.err.println("[config error] Skipping server '" + host + "'");
             }
         }
-        return servers;
+        return validServers;
     }
 
     private long parseSize(String value) {
