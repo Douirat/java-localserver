@@ -5,62 +5,66 @@ import http.connection.ConnectionState;
 import http.request.Request;
 import http.response.Response;
 import http.router.Router;
+import http.router.VirtualHost;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 public class Server {
 
-    private final String host;
-    private final List<Integer> ports;
-    private final ServerConfig config;
+    private final List<ServerConfig> servers;
     private final Router router = new Router();
 
     private Selector selector;
 
     private final List<ServerSocketChannel> serverChannels = new ArrayList<>();
 
-    public Server(ServerConfig config) {
-        this.config = config;
-        this.host = config.getHost();
-        this.ports = new ArrayList<>(config.getPorts());
+    public Server(List<ServerConfig> servers) {
+        this.servers = servers;
     }
 
     public void start() throws IOException {
-
         selector = Selector.open();
+        bindAll();
+        run();
+    }
 
-        for (int port : ports) {
+    // one ServerSocketChannel per unique host:port. If two server blocks share
+    // an address (virtual hosting), they're grouped onto the SAME channel and
+    // both attached, so VirtualHost.resolve() can pick between them per request.
+    private void bindAll() throws IOException {
+        Map<String, List<ServerConfig>> byAddress = new HashMap<>();
 
-            // This channel accepts NEW connections.
-            ServerSocketChannel serverChannel = ServerSocketChannel.open();
-
-            serverChannel.configureBlocking(false);
-
-            serverChannel.bind(
-                    new InetSocketAddress(host, port));
-
-            /**
-             * The server socket itself is registered with the selector.
-             * OP_ACCEPT means:
-             * "Tell me when a new client wants to connect."
-             */
-            serverChannel.register(
-                    selector,
-                    SelectionKey.OP_ACCEPT);
-
-            serverChannels.add(serverChannel);
-
-            System.out.println(
-                    "Server listening on " + host + ":" + port);
+        for (ServerConfig sc : servers) {
+            for (int port : sc.getPorts()) {
+                String key = sc.getHost() + ":" + port;
+                byAddress.computeIfAbsent(key, k -> new ArrayList<>()).add(sc);
+            }
         }
 
-        run();
+        for (Map.Entry<String, List<ServerConfig>> entry : byAddress.entrySet()) {
+            String addr = entry.getKey();
+            int sep = addr.lastIndexOf(':');
+            String host = addr.substring(0, sep);
+            int port = Integer.parseInt(addr.substring(sep + 1));
+
+            ServerSocketChannel channel = ServerSocketChannel.open();
+            channel.configureBlocking(false);
+            channel.bind(new InetSocketAddress(host, port));
+
+            SelectionKey key = channel.register(selector, SelectionKey.OP_ACCEPT);
+            key.attach(entry.getValue()); // List<ServerConfig> sharing this address
+
+            serverChannels.add(channel);
+            System.out.println("Server listening on " + addr);
+        }
     }
 
     private void run() throws IOException {
@@ -103,10 +107,7 @@ public class Server {
                     // I/O error on this client only -> drop it, keep serving everyone else
                     closeQuietly(key);
                 }
-
             }
-
-            selector.selectedKeys().clear();
         }
     }
 
@@ -136,7 +137,10 @@ public class Server {
         // CREATE STATE FOR THIS SPECIFIC CLIENT
         // ========================================================
 
-        ConnectionState state = new ConnectionState(client);
+        @SuppressWarnings("unchecked")
+        List<ServerConfig> candidates = (List<ServerConfig>) key.attachment();
+
+        ConnectionState state = new ConnectionState(client, candidates);
 
         // ========================================================
         // REGISTER THIS CLIENT WITH THE SELECTOR
@@ -192,7 +196,10 @@ public class Server {
         }
 
         conn.setRequest(request);
-        Response response = router.route(request, config);
+
+        // virtual host resolution happens HERE, now that Host header is known
+        ServerConfig server = VirtualHost.resolve(conn.getCandidates(), request.getHeader("host"));
+        Response response = router.route(request, server);
         conn.setResponse(response);
         conn.setWriteBuffer(ByteBuffer.wrap(response.toBytes()));
 
@@ -217,18 +224,18 @@ public class Server {
         key.interestOps(SelectionKey.OP_READ);
     }
 
-    /**
-     * TODO: replace with real routing — Router.resolveRoute(config,
-     * request.getPath()),
-     * then static file serving / CGI / redirect based on the matched RouteConfig.
-     * Stub keeps the read/write loop testable end-to-end right now.
-     */
-    private Response handle(Request request) {
-        Response response = new Response(200, "OK");
-        response.addHeader("Content-Type", "text/plain");
-        response.setBody(request.getMethod() + " " + request.getPath() + " received\n");
-        return response;
-    }
+    // /**
+    //  *  replace with real routing — Router.resolveRoute(config,
+    //  * request.getPath()),
+    //  * then static file serving / CGI / redirect based on the matched RouteConfig.
+    //  * Stub keeps the read/write loop testable end-to-end right now.
+    //  */
+    // private Response handle(Request request) {
+    //     Response response = new Response(200, "OK");
+    //     response.addHeader("Content-Type", "text/plain");
+    //     response.setBody(request.getMethod() + " " + request.getPath() + " received\n");
+    //     return response;
+    // }
 
     private void closeQuietly(SelectionKey key) {
         try {
