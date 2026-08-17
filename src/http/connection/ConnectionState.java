@@ -2,7 +2,9 @@ package http.connection;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.util.List;
 
+import config.ServerConfig;
 import http.parser.HttpParser;
 import http.request.Request;
 import http.response.Response;
@@ -11,6 +13,10 @@ public class ConnectionState {
 
         // This specific client's socket.
         private final SocketChannel client;
+
+        // Every ServerConfig block bound to the same host:port as this connection.
+        // The actual one is picked once we've read the Host header.
+        private final List<ServerConfig> candidates;
 
         // Bytes received from THIS client.
         ByteBuffer readBuffer = ByteBuffer.allocate(8192);
@@ -36,13 +42,18 @@ public class ConnectionState {
 
         private long lastActivity;
 
-        public ConnectionState(SocketChannel client) {
+        public ConnectionState(SocketChannel client, List<ServerConfig> candidates) {
                 this.client = client;
+                this.candidates = candidates;
                 this.lastActivity = System.currentTimeMillis();
         }
 
         public SocketChannel getClient() {
                 return client;
+        }
+
+        public List<ServerConfig> getCandidates() {
+                return candidates;
         }
 
         public ByteBuffer getReadBuffer() {
