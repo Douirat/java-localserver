@@ -103,4 +103,9 @@ public class RouteConfig {
                 ",\n  uploadDir='" + uploadDir + '\'' +
                 "\n}";
     }
+
+    public void debug(){
+        System.out.println("debbuging route:");
+        System.out.println(this.toString());
+    }
 }

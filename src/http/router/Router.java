@@ -14,13 +14,18 @@ public class Router implements Routing {
 
     @Override
     public Response route(Request request, ServerConfig server) {
+
+        request.debug();
+
         RouteConfig route = resolveRoute(server, request.getPath());
+
 
         if (route == null) {
             return ResponseBuilder.notFound();
         }
 
-        System.out.println("route ---> " + route.toString());
+        route.debug();
+
 
         if (!route.getMethods().isEmpty() && !route.getMethods().contains(request.getMethod())) {
             return ResponseBuilder.methodNotAllowed(String.join(", ", route.getMethods()));
@@ -29,6 +34,16 @@ public class Router implements Routing {
         if (route.getRedirectCode() > 0) {
             return ResponseBuilder.redirect(route.getRedirectCode(), route.getRedirectUrl());
         }
+
+            // Handle POST (file upload)
+    if (request.getMethod().equals("POST") && route.getUploadDir() != null) {
+        return handleUpload(request, route);
+    }
+
+    // Handle DELETE
+    if (request.getMethod().equals("DELETE")) {
+        return handleDelete(request, route);
+    }
 
         return serveStatic(request, route);
     }
@@ -52,8 +67,8 @@ public class Router implements Routing {
 
     private Response serveStatic(Request request, RouteConfig route) {
         String relative = request.getPath().substring(route.getPath().length());
-        System.out.println("path---> " + relative);
         Path filePath = Path.of(route.getRoot(), relative);
+        System.out.println("path---> " + filePath.getRoot());
 
         if (Files.isDirectory(filePath)) {
             if (route.getIndex() != null) {
@@ -112,4 +127,78 @@ public class Router implements Routing {
             return "text/plain";
         return "application/octet-stream";
     }
+
+    private Response handleUpload(Request request, RouteConfig route) {
+    try {
+        String contentType = request.getHeaders().get("content-type");
+        if (contentType == null || !contentType.startsWith("multipart/form-data")) {
+            return ResponseBuilder.badRequest();
+        }
+
+        // Extract boundary
+        String boundary = "--" + contentType.split("boundary=")[1].trim();
+
+        byte[] body = request.getBody();
+        String bodyStr = new String(body, java.nio.charset.StandardCharsets.ISO_8859_1);
+
+        // Find filename
+        int filenameIdx = bodyStr.indexOf("filename=\"");
+        if (filenameIdx == -1) {
+            return ResponseBuilder.badRequest();
+        }
+        int filenameStart = filenameIdx + 10;
+        int filenameEnd = bodyStr.indexOf("\"", filenameStart);
+        String filename = bodyStr.substring(filenameStart, filenameEnd);
+
+        // Find start of file content (after the double CRLF following headers)
+        int headerEnd = bodyStr.indexOf("\r\n\r\n", filenameIdx) + 4;
+
+        // Find end boundary
+        String endBoundary = boundary + "--";
+        int contentEnd = bodyStr.lastIndexOf(endBoundary) - 2; // -2 for the CRLF before boundary
+
+        // Extract raw bytes
+        byte[] fileBytes = java.util.Arrays.copyOfRange(body, headerEnd, contentEnd);
+
+        // Save to upload dir
+        Path uploadPath = Path.of(route.getUploadDir(), filename);
+        Files.write(uploadPath, fileBytes);
+
+        return ResponseBuilder.ok(
+            ("File uploaded successfully: " + filename).getBytes(),
+            "text/plain"
+        );
+
+    } catch (Exception e) {
+        System.err.println("Upload error: " + e.getMessage());
+        return ResponseBuilder.internalServerError();
+    }
+}
+
+private Response handleDelete(Request request, RouteConfig route) {
+    try {
+        String relative = request.getPath().substring(route.getPath().length());
+        if (relative.isEmpty() || relative.equals("/")) {
+            return ResponseBuilder.badRequest();
+        }
+
+        Path filePath = Path.of(route.getRoot(), relative);
+
+        if (!Files.exists(filePath)) {
+            return ResponseBuilder.notFound();
+        }
+
+        if (Files.isDirectory(filePath)) {
+            return ResponseBuilder.forbidden();
+        }
+
+        Files.delete(filePath);
+        return ResponseBuilder.ok("File deleted successfully.".getBytes(), "text/plain");
+
+    } catch (IOException e) {
+        System.err.println("Delete error: " + e.getMessage());
+        return ResponseBuilder.internalServerError();
+    }
+}
+
 }

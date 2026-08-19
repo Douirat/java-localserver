@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import java.nio.charset.StandardCharsets;
+// import java.nio.charset.StandardCharsets;
 
 public class Request implements Requesting {
 
@@ -12,12 +12,12 @@ public class Request implements Requesting {
     private String path;
     private String version;
 
-
-
-    private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER); // respect the case insensitive nature of the headers.
+    private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER); // respect the case
+                                                                                              // insensitive nature of
+                                                                                              // the headers.
     private final Map<String, String> queryParameters = new HashMap<>();
     private final Map<String, String> pathVariables = new HashMap<>();
-    private  final Map<String, String> cookies = new HashMap<>();
+    private final Map<String, String> cookies = new HashMap<>();
 
     // In the case of a static file i will need to add the
 
@@ -95,7 +95,8 @@ public class Request implements Requesting {
         return headers.get(key);
     }
 
-    // path variables are set by the router when matching dynamic routes (e.g., /api/users/{id}).
+    // path variables are set by the router when matching dynamic routes (e.g.,
+    // /api/users/{id}).
     public void addPathVariable(String key, String value) {
         pathVariables.put(key, value);
     }
@@ -109,7 +110,8 @@ public class Request implements Requesting {
         this.body = body;
     }
 
-    // return the cookies object, which contains all cookie attributes (name, value, domain, path, expires, secure, httpOnly, sameSite).
+    // return the cookies object, which contains all cookie attributes (name, value,
+    // domain, path, expires, secure, httpOnly, sameSite).
     public Map<String, String> getCookies() {
         return Collections.unmodifiableMap(cookies);
     }
@@ -119,63 +121,101 @@ public class Request implements Requesting {
         return cookies.get(name);
     }
 
-
     public byte[] getBody() {
         return body;
     }
 
     @Override
-public String toString() {
-    StringBuilder sb = new StringBuilder();
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
 
-    // Request-line: METHOD SP request-target SP HTTP-version CRLF
-    sb.append(method).append(' ')
-      .append(buildRequestTarget()).append(' ')
-      .append(version).append("\r\n");
+        sb.append("{\n");
+        sb.append("  \"method\": \"").append(method).append("\",\n");
+        sb.append("  \"path\": \"").append(path).append("\",\n");
+        sb.append("  \"version\": \"").append(version).append("\",\n");
 
-    // Header fields: "Name: value" CRLF, one per header
-    for (Map.Entry<String, String> entry : headers.entrySet()) {
-        sb.append(entry.getKey()).append(": ").append(entry.getValue()).append("\r\n");
+        sb.append("  \"headers\": {\n");
+        appendMap(sb, headers, 4);
+        sb.append("  },\n");
+
+        sb.append("  \"queryParameters\": {\n");
+        appendMap(sb, queryParameters, 4);
+        sb.append("  },\n");
+
+        sb.append("  \"pathVariables\": {\n");
+        appendMap(sb, pathVariables, 4);
+        sb.append("  },\n");
+
+        sb.append("  \"cookies\": {\n");
+        appendMap(sb, cookies, 4);
+        sb.append("  },\n");
+
+        sb.append("  \"bodyLength\": ")
+                .append(body == null ? 0 : body.length)
+                .append("\n");
+
+        sb.append("}");
+
+        return sb.toString();
     }
 
-    // Cookies travel as ONE "Cookie" header, not separate fields (RFC 6265)
-    if (!cookies.isEmpty()) {
-        sb.append("Cookie: ").append(buildCookieHeader()).append("\r\n");
+    private void appendMap(
+            StringBuilder sb,
+            Map<String, String> map,
+            int indentation) {
+
+        boolean first = true;
+
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+
+            if (!first) {
+                sb.append(",\n");
+            }
+
+            sb.append(" ".repeat(indentation))
+                    .append("\"")
+                    .append(entry.getKey())
+                    .append("\": \"")
+                    .append(entry.getValue())
+                    .append("\"");
+
+            first = false;
+        }
+
+        if (!map.isEmpty()) {
+            sb.append("\n");
+        }
     }
 
-    // Blank line marks end of headers
-    sb.append("\r\n");
-
-    // Message body, if any
-    if (body != null && body.length > 0) {
-        sb.append(new String(body, StandardCharsets.UTF_8));
+    private String buildRequestTarget() {
+        if (queryParameters.isEmpty()) {
+            return path;
+        }
+        StringBuilder target = new StringBuilder(path).append('?');
+        boolean first = true;
+        for (Map.Entry<String, String> entry : queryParameters.entrySet()) {
+            if (!first)
+                target.append('&');
+            target.append(entry.getKey()).append('=').append(entry.getValue());
+            first = false;
+        }
+        return target.toString();
     }
 
-    return sb.toString();
-}
+    private String buildCookieHeader() {
+        StringBuilder cookieHeader = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, String> entry : cookies.entrySet()) {
+            if (!first)
+                cookieHeader.append("; ");
+            cookieHeader.append(entry.getKey()).append('=').append(entry.getValue());
+            first = false;
+        }
+        return cookieHeader.toString();
+    }
 
-private String buildRequestTarget() {
-    if (queryParameters.isEmpty()) {
-        return path;
+    public void debug() {
+        System.out.println("request debugging");
+        System.out.println(this.toString());
     }
-    StringBuilder target = new StringBuilder(path).append('?');
-    boolean first = true;
-    for (Map.Entry<String, String> entry : queryParameters.entrySet()) {
-        if (!first) target.append('&');
-        target.append(entry.getKey()).append('=').append(entry.getValue());
-        first = false;
-    }
-    return target.toString();
-}
-
-private String buildCookieHeader() {
-    StringBuilder cookieHeader = new StringBuilder();
-    boolean first = true;
-    for (Map.Entry<String, String> entry : cookies.entrySet()) {
-        if (!first) cookieHeader.append("; ");
-        cookieHeader.append(entry.getKey()).append('=').append(entry.getValue());
-        first = false;
-    }
-    return cookieHeader.toString();
-}
 }
