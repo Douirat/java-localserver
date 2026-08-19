@@ -10,6 +10,11 @@ public class VirtualHost {
     // then whichever block said "default_server on;",
     // then just the first block bound to this address.
     public static ServerConfig resolve(List<ServerConfig> candidates, String hostHeader) {
+        System.out.println("server configs candidates: ");
+        for(ServerConfig sc: candidates){
+            System.out.println(sc.toString());
+        }
+
         String name = (hostHeader != null) ? hostHeader.split(":")[0] : null;
 
         if (name != null) {

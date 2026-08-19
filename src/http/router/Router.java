@@ -20,6 +20,8 @@ public class Router implements Routing {
             return ResponseBuilder.notFound();
         }
 
+        System.out.println("route ---> " + route.toString());
+
         if (!route.getMethods().isEmpty() && !route.getMethods().contains(request.getMethod())) {
             return ResponseBuilder.methodNotAllowed(String.join(", ", route.getMethods()));
         }
@@ -50,6 +52,7 @@ public class Router implements Routing {
 
     private Response serveStatic(Request request, RouteConfig route) {
         String relative = request.getPath().substring(route.getPath().length());
+        System.out.println("path---> " + relative);
         Path filePath = Path.of(route.getRoot(), relative);
 
         if (Files.isDirectory(filePath)) {
@@ -60,7 +63,7 @@ public class Router implements Routing {
             }
         }
 
-        if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
+        if (!Files.exists(filePath)) {
             return ResponseBuilder.notFound();
         }
 
@@ -87,16 +90,26 @@ public class Router implements Routing {
     }
 
     private String contentType(String path) {
-        if (path.endsWith(".html")) return "text/html";
-        if (path.endsWith(".css")) return "text/css";
-        if (path.endsWith(".js")) return "application/javascript";
-        if (path.endsWith(".json")) return "application/json";
-        if (path.endsWith(".png")) return "image/png";
-        if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
-        if (path.endsWith(".gif")) return "image/gif";
-        if (path.endsWith(".svg")) return "image/svg+xml";
-        if (path.endsWith(".ico")) return "image/x-icon";
-        if (path.endsWith(".txt")) return "text/plain";
+        if (path.endsWith(".html"))
+            return "text/html";
+        if (path.endsWith(".css"))
+            return "text/css";
+        if (path.endsWith(".js"))
+            return "application/javascript";
+        if (path.endsWith(".json"))
+            return "application/json";
+        if (path.endsWith(".png"))
+            return "image/png";
+        if (path.endsWith(".jpg") || path.endsWith(".jpeg"))
+            return "image/jpeg";
+        if (path.endsWith(".gif"))
+            return "image/gif";
+        if (path.endsWith(".svg"))
+            return "image/svg+xml";
+        if (path.endsWith(".ico"))
+            return "image/x-icon";
+        if (path.endsWith(".txt"))
+            return "text/plain";
         return "application/octet-stream";
     }
 }

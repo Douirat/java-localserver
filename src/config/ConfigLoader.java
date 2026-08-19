@@ -194,7 +194,7 @@ public class ConfigLoader {
         while (reader.hasMore() && !reader.peek().equals("}")) {
             parseLocationDirective(reader, route);
         }
-        
+
         if (route.getRoot() == null && route.getRedirectCode() == 0) {
             throw new ConfigParsingException("Location '" + route.getPath() + "' has no root or return directive");
         }
@@ -303,15 +303,31 @@ public class ConfigLoader {
 
             // Check route root and upload_dir exist on disk
             for (RouteConfig route : server.getRoutes()) {
-                if (route.getRoot() != null && !new java.io.File(route.getRoot()).exists()) {
-                    System.err.println("[config error] route '" + route.getPath()
-                            + "' root '" + route.getRoot() + "' does not exist");
-                    valid = false;
+                if (route.getRoot() != null) {
+                    java.io.File rootDir = new java.io.File(route.getRoot());
+                    if (!rootDir.exists()) {
+                        if (rootDir.mkdirs()) {
+                            System.out
+                                    .println("[config info] Created missing root directory: '" + route.getRoot() + "'");
+                        } else {
+                            System.err.println(
+                                    "[config error] Could not create root directory: '" + route.getRoot() + "'");
+                            valid = false;
+                        }
+                    }
                 }
-                if (route.getUploadDir() != null && !new java.io.File(route.getUploadDir()).exists()) {
-                    System.err.println("[config error] route '" + route.getPath()
-                            + "' upload_dir '" + route.getUploadDir() + "' does not exist");
-                    valid = false;
+                if (route.getUploadDir() != null) {
+                    java.io.File uploadDir = new java.io.File(route.getUploadDir());
+                    if (!uploadDir.exists()) {
+                        if (uploadDir.mkdirs()) {
+                            System.out.println(
+                                    "[config info] Created missing upload_dir: '" + route.getUploadDir() + "'");
+                        } else {
+                            System.err.println(
+                                    "[config error] Could not create upload_dir: '" + route.getUploadDir() + "'");
+                            valid = false;
+                        }
+                    }
                 }
             }
 

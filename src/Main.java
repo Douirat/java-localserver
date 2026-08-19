@@ -11,6 +11,12 @@ public class Main {
     
         try {
             List<ServerConfig> servers = new ConfigLoader(configFilePath).parse();
+            for(var con: servers){
+                System.out.println(con.toString());
+                for(var r: con.getRoutes()){
+                    System.out.println(r.toString());
+                }
+            }
             Server server = new Server(servers);
             server.start(); // blocks forever in the select loop
 

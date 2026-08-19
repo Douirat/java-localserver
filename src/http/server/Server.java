@@ -1,5 +1,6 @@
 package http.server;
 
+import config.RouteConfig;
 import config.ServerConfig;
 import http.connection.ConnectionState;
 import http.request.Request;
@@ -43,6 +44,13 @@ public class Server {
         Map<String, List<ServerConfig>> byAddress = new HashMap<>();
 
         for (ServerConfig sc : servers) {
+            //  System.out.println("server: ---->");
+            // System.out.println(sc.toString());
+            // System.out.println("router: ---->");
+            // for(RouteConfig rc: sc.getRoutes()){
+            //     System.out.println(rc.toString());
+            // }
+
             for (int port : sc.getPorts()) {
                 String key = sc.getHost() + ":" + port;
                 byAddress.computeIfAbsent(key, k -> new ArrayList<>()).add(sc);
@@ -197,9 +205,13 @@ public class Server {
 
         conn.setRequest(request);
 
+        System.out.println("request: --->\n" + request.toString());
+
         // virtual host resolution happens HERE, now that Host header is known
         ServerConfig server = VirtualHost.resolve(conn.getCandidates(), request.getHeader("host"));
         Response response = router.route(request, server);
+
+        response.debug();
         conn.setResponse(response);
         conn.setWriteBuffer(ByteBuffer.wrap(response.toBytes()));
 
@@ -210,6 +222,8 @@ public class Server {
         ConnectionState conn = (ConnectionState) key.attachment();
         SocketChannel client = conn.getClient();
         ByteBuffer buf = conn.getWriteBuffer();
+
+        System.out.println("The response Reached the writer: "+ conn.getResponse().toString());
 
         client.write(buf); // exactly one write() call per select wakeup
 

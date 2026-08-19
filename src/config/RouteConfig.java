@@ -88,4 +88,19 @@ public class RouteConfig {
     public void setUploadDir(String uploadDir) {
         this.uploadDir = uploadDir;
     }
+
+    @Override
+    public String toString() {
+        return "RouteConfig{" +
+                "\n  path='" + path + '\'' +
+                ",\n  methods=" + methods +
+                ",\n  redirectUrl='" + redirectUrl + '\'' +
+                ",\n  redirectCode=" + redirectCode +
+                ",\n  root='" + root + '\'' +
+                ",\n  index='" + index + '\'' +
+                ",\n  cgiExtensions=" + cgiExtensions +
+                ",\n  directoryListing=" + directoryListing +
+                ",\n  uploadDir='" + uploadDir + '\'' +
+                "\n}";
+    }
 }

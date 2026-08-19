@@ -72,4 +72,17 @@ public class ServerConfig {
         this.routes.add(route);
     }
 
+    @Override
+    public String toString() {
+        return "ServerConfig{" +
+                "\n  host='" + host + '\'' +
+                ",\n  ports=" + ports +
+                ",\n  defaultServer=" + defaultServer +
+                ",\n  serverName='" + serverName + '\'' +
+                ",\n  errorPages=" + errorPages +
+                ",\n  maxBodyBytes=" + maxBodyBytes +
+                ",\n  routes=" + routes +
+                "\n}";
+    }
+
 }

@@ -46,7 +46,10 @@ public class Response {
         return body;
     }
 
-    /** Serializes status line + headers + body into raw HTTP/1.1 bytes ready to write. */
+    /**
+     * Serializes status line + headers + body into raw HTTP/1.1 bytes ready to
+     * write.
+     */
     public byte[] toBytes() {
         StringBuilder sb = new StringBuilder();
         sb.append("HTTP/1.1 ").append(statusCode).append(' ').append(statusText).append("\r\n");
@@ -60,5 +63,20 @@ public class Response {
         out.writeBytes(head);
         out.writeBytes(body);
         return out.toByteArray();
+    }
+
+    @Override
+    public String toString() {
+        return "Response{" +
+                "statusCode=" + statusCode +
+                ", statusText='" + statusText + '\'' +
+                ", headers=" + headers +
+                ", bodyLength=" + body.length +
+                ", body='" + new String(body, StandardCharsets.UTF_8) + '\'' +
+                '}';
+    }
+
+    public void debug() {
+        System.out.println("debug the response ----> " + this.toString());
     }
 }
