@@ -1,0 +1,1 @@
+curl -H "Host: localhost" http://127.0.0.1:8080/uploads/test.mp4 -o downloaded.mp4
