@@ -53,14 +53,14 @@ public class Server {
 
         // for (Map.Entry<String, List<ServerConfig>> entry : byAddress.entrySet()) {
 
-        //     String address = entry.getKey();
-        //     List<ServerConfig> configs = entry.getValue();
+        // String address = entry.getKey();
+        // List<ServerConfig> configs = entry.getValue();
 
-        //     System.out.println("Address: " + address);
+        // System.out.println("Address: " + address);
 
-        //     for (ServerConfig config : configs) {
-        //         System.out.println("Config: " + config);
-        //     }
+        // for (ServerConfig config : configs) {
+        // System.out.println("Config: " + config);
+        // }
         // }
 
         for (Map.Entry<String, List<ServerConfig>> entry : byAddress.entrySet()) {
@@ -83,10 +83,8 @@ public class Server {
 
     private void run() throws IOException {
         while (true) {
-
             /**
              * Wait until something happens on one of the registered channels.
-             *
              * For example:
              * - Client A sends data -> OP_READ
              * - Client B is ready to write -> OP_WRITE
@@ -99,15 +97,12 @@ public class Server {
             while (iterator.hasNext()) {
 
                 SelectionKey key = iterator.next();
-
                 // VERY IMPORTANT:
                 // Remove it because we are now processing this event.
                 iterator.remove();
-
                 if (!key.isValid()) {
                     continue;
                 }
-
                 // NEW CLIENT CONNECTED
                 try {
                     if (key.isAcceptable()) {
@@ -218,12 +213,18 @@ public class Server {
 
         // server.debug();
 
-
         Response response = router.route(request, server);
 
         response.debug();
         conn.setResponse(response);
-        conn.setWriteBuffer(ByteBuffer.wrap(response.toBytes()));
+
+        if (response.isStreaming()) {
+            // send headers first, then stream file in write()
+            conn.setWriteBuffer(ByteBuffer.wrap(response.headersToBytes()));
+            conn.setFilePosition(0);
+        } else {
+            conn.setWriteBuffer(ByteBuffer.wrap(response.toBytes()));
+        }
 
         key.interestOps(SelectionKey.OP_WRITE);
     }
@@ -231,20 +232,36 @@ public class Server {
     private void write(SelectionKey key) throws IOException {
         ConnectionState conn = (ConnectionState) key.attachment();
         SocketChannel client = conn.getClient();
+
+        // 1. flush header buffer (or full body buffer for non-streaming responses)
         ByteBuffer buf = conn.getWriteBuffer();
-
-        System.out.println("The response Reached the writer: " + conn.getResponse().toString());
-
-        client.write(buf); // exactly one write() call per select wakeup
-
-        if (buf.hasRemaining()) {
-            return; // not fully flushed yet, stay in OP_WRITE
+        if (buf != null && buf.hasRemaining()) {
+            client.write(buf);
+            if (buf.hasRemaining())
+                return; // not done yet
+            conn.setWriteBuffer(null);
         }
 
-        // response fully sent, reset for the next request on this connection
+        // 2. stream file if this is a streaming response
+        Response response = conn.getResponse();
+        if (response.isStreaming()) {
+            FileChannel fc = response.getFileChannel();
+            long remaining = response.getContentLength() - conn.getFilePosition();
+            if (remaining > 0) {
+                long written = fc.transferTo(conn.getFilePosition(), remaining, client);
+                conn.setFilePosition(conn.getFilePosition() + written);
+                if (conn.getFilePosition() < response.getContentLength()) {
+                    return; // more chunks to send
+                }
+            }
+            response.closeFileChannel();
+        }
+
+        // 3. fully sent — reset for next request
         conn.getParser().reset();
         conn.getReadBuffer().clear();
         conn.setWriteBuffer(null);
+        conn.setFilePosition(0);
         key.interestOps(SelectionKey.OP_READ);
     }
 

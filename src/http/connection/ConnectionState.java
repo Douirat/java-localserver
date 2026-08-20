@@ -9,7 +9,7 @@ import http.parser.HttpParser;
 import http.request.Request;
 import http.response.Response;
 
-public class ConnectionState {
+public class ConnectionState implements Connecting {
 
         // This specific client's socket.
         private final SocketChannel client;
@@ -37,6 +37,8 @@ public class ConnectionState {
 
         // The response currently being sent.
         Response response;
+
+        private long filePosition = 0;
 
         // Used later for idle timeout.
 
@@ -86,6 +88,14 @@ public class ConnectionState {
 
         public void setResponse(Response response) {
                 this.response = response;
+        }
+
+        public long getFilePosition() {
+                return filePosition;
+        }
+
+        public void setFilePosition(long p) {
+                this.filePosition = p;
         }
 
         public long getLastActivity() {

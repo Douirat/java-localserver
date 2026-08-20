@@ -1,5 +1,6 @@
 package http.response;
 
+import java.nio.channels.FileChannel;
 import java.util.Map;
 
 public class ResponseBuilder implements RespondingBuilder {
@@ -50,7 +51,15 @@ public class ResponseBuilder implements RespondingBuilder {
         return response;
     }
 
-    // ---- default error pages required by the audit: 400, 403, 404, 405, 413, 500 ----
+    // file streaming (zero-copy)
+    public static Response okFile(String contentType, long size, FileChannel fc) {
+        Response r = new Response(200, "OK");
+        r.addHeader("Content-Type", contentType);
+        r.setFileChannel(fc, size);
+        return r;
+    }
+
+    // default error pages required by the audit: 400, 403, 404, 405, 413, 500
 
     public static Response ok(byte[] body, String contentType) {
         return create().status(200, "OK").header("Content-Type", contentType).body(body).build();
