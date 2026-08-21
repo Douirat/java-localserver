@@ -94,6 +94,10 @@ public class ResponseBuilder implements RespondingBuilder {
         return errorPage(500, "Internal Server Error");
     }
 
+    public static Response gatewayTimeout() {
+        return errorPage(504, "Gateway Timeout");
+    }
+
     public static Response redirect(int code, String location) {
         return create()
                 .status(code, code == 301 ? "Moved Permanently" : "Found")

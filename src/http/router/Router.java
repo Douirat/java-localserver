@@ -8,6 +8,7 @@ import java.nio.file.StandardOpenOption;
 
 import config.RouteConfig;
 import config.ServerConfig;
+import http.cgi.CGIHandler;
 import http.request.Request;
 import http.response.Response;
 import http.response.ResponseBuilder;
@@ -33,6 +34,10 @@ public class Router implements Routing {
 
         if (route.getRedirectCode() > 0) {
             return ResponseBuilder.redirect(route.getRedirectCode(), route.getRedirectUrl());
+        }
+
+        if (!route.getCgiExtensions().isEmpty()) {
+            return CGIHandler.execute(request, route);
         }
 
         // Handle POST (file upload)
