@@ -10,14 +10,14 @@ public class Main {
         String configFilePath = args[0];
 
         try {
-            List<ServerConfig> servers = new ConfigLoader(configFilePath).parse();
+            List<ServerConfig> configurations = new ConfigLoader(configFilePath).parse();
             // for(var con: servers){
             //     System.out.println(con.toString());
             //     for(var r: con.getRoutes()){
             //         System.out.println(r.toString());
             //     }
             // }
-            Server server = new Server(servers);
+            Server server = new Server(configurations);
             server.start(); // blocks forever in the select loop
 
         } catch (IOException e) {

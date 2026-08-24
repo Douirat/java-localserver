@@ -20,15 +20,15 @@ import java.util.Map;
 
 public class Server {
 
-    private final List<ServerConfig> servers;
+    private final List<ServerConfig> configurations;
     private final Router router = new Router();
 
     private Selector selector;
 
     private final List<ServerSocketChannel> serverChannels = new ArrayList<>();
 
-    public Server(List<ServerConfig> servers) {
-        this.servers = servers;
+    public Server(List<ServerConfig> configurations) {
+        this.configurations = configurations;
     }
 
     public void start() throws IOException {
@@ -43,8 +43,8 @@ public class Server {
     private void bindAll() throws IOException {
         Map<String, List<ServerConfig>> byAddress = new HashMap<>();
 
-        for (ServerConfig sc : servers) {
-
+        for (ServerConfig sc : configurations) {
+            sc.debug();
             for (int port : sc.getPorts()) {
                 String key = sc.getHost() + ":" + port;
                 byAddress.computeIfAbsent(key, k -> new ArrayList<>()).add(sc);
@@ -64,6 +64,14 @@ public class Server {
         // }
 
         for (Map.Entry<String, List<ServerConfig>> entry : byAddress.entrySet()) {
+
+            System.err.println("------------------------");
+            System.out.println("the key: " + entry.getKey() + " ---> ");
+            for (var sc : entry.getValue()) {
+                sc.debug();
+            }
+            System.err.println("------------------------");
+
             String addr = entry.getKey();
             int sep = addr.lastIndexOf(':');
             String host = addr.substring(0, sep);
