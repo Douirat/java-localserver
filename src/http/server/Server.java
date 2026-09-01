@@ -2,9 +2,11 @@ package http.server;
 
 import config.RouteConfig;
 import config.ServerConfig;
+import exceptions.BadRequestException;
 import http.connection.ConnectionState;
 import http.request.Request;
 import http.response.Response;
+import http.response.ResponseBuilder;
 import http.router.Router;
 import http.router.VirtualHost;
 
@@ -123,6 +125,11 @@ public class Server {
                 } catch (IOException ex) {
                     // I/O error on this client only -> drop it, keep serving everyone else
                     closeQuietly(key);
+                } catch (Exception ex) {
+                    // Unexpected runtime error (e.g. BadRequestException bubbled up
+                    // from somewhere other than read()) -> close client, keep running.
+                    System.err.println("[server] Unexpected error, closing client: " + ex.getMessage());
+                    closeQuietly(key);
                 }
             }
         }
@@ -205,7 +212,20 @@ public class Server {
         conn.updateActivity();
 
         buf.flip();
-        Request request = conn.getParser().parse(buf);
+        Request request;
+        try {
+            request = conn.getParser().parse(buf);
+        } catch (BadRequestException ex) {
+            // Malformed request — send 400 and close; server keeps running.
+            System.err.println("[parser] Bad request from client: " + ex.getMessage());
+            buf.clear(); // discard poisoned bytes
+            conn.getParser().reset();
+            Response bad = ResponseBuilder.badRequest();
+            conn.setResponse(bad);
+            conn.setWriteBuffer(ByteBuffer.wrap(bad.toBytes()));
+            key.interestOps(SelectionKey.OP_WRITE);
+            return;
+        }
         buf.compact(); // keep any unconsumed bytes for the next read (pipelining)
 
         if (request == null) {
@@ -214,12 +234,8 @@ public class Server {
 
         conn.setRequest(request);
 
-        // System.out.println("request: --->\n" + request.toString());
-
         // virtual host resolution happens HERE, now that Host header is known
         ServerConfig server = VirtualHost.resolve(conn.getCandidates(), request.getHeader("host"));
-
-        // server.debug();
 
         Response response = router.route(request, server);
 
