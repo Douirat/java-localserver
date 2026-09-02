@@ -23,13 +23,13 @@ public class Router implements Routing {
         RouteConfig route = resolveRoute(server, request.getPath());
 
         if (route == null) {
-            return ResponseBuilder.notFound();
+            return ResponseBuilder.notFound(server);
         }
 
         route.debug();
 
         if (!route.getMethods().isEmpty() && !route.getMethods().contains(request.getMethod())) {
-            return ResponseBuilder.methodNotAllowed(String.join(", ", route.getMethods()));
+            return ResponseBuilder.methodNotAllowed(String.join(", ", route.getMethods()), server);
         }
 
         if (route.getRedirectCode() > 0) {
@@ -37,20 +37,20 @@ public class Router implements Routing {
         }
 
         if (!route.getCgiExtensions().isEmpty()) {
-            return CGIHandler.execute(request, route);
+            return CGIHandler.execute(request, route, server);
         }
 
         // Handle POST (file upload)
         if (request.getMethod().equals("POST") && route.getUploadDir() != null) {
-            return handleUpload(request, route);
+            return handleUpload(request, route, server);
         }
 
         // Handle DELETE
         if (request.getMethod().equals("DELETE")) {
-            return handleDelete(request, route);
+            return handleDelete(request, route, server);
         }
 
-        return serveStatic(request, route);
+        return serveStatic(request, route, server);
     }
 
     // longest matching location prefix, e.g. "/api/users" beats "/api"
@@ -70,20 +70,23 @@ public class Router implements Routing {
         return best;
     }
 
-    private Response serveStatic(Request request, RouteConfig route) {
+    private Response serveStatic(Request request, RouteConfig route, ServerConfig server) {
         String relative = request.getPath().substring(route.getPath().length());
+        while (relative.startsWith("/")) {
+            relative = relative.substring(1);
+        }
         Path filePath = Path.of(route.getRoot(), relative);
 
         if (Files.isDirectory(filePath)) {
             if (route.getIndex() != null) {
                 filePath = filePath.resolve(route.getIndex());
             } else {
-                return route.isDirectoryListing() ? listDirectory(filePath) : ResponseBuilder.forbidden();
+                return route.isDirectoryListing() ? listDirectory(filePath, server) : ResponseBuilder.forbidden(server);
             }
         }
 
         if (!Files.exists(filePath)) {
-            return ResponseBuilder.notFound();
+            return ResponseBuilder.notFound(server);
         }
 
         try {
@@ -91,16 +94,17 @@ public class Router implements Routing {
             FileChannel fc = FileChannel.open(filePath, StandardOpenOption.READ);
             return ResponseBuilder.okFile(contentType(filePath.toString()), size, fc);
         } catch (IOException e) {
-            return ResponseBuilder.internalServerError();
+            return ResponseBuilder.internalServerError(server);
         }
     }
 
-    private Response listDirectory(Path dir) {
+    private Response listDirectory(Path dir, ServerConfig server) {
         StringBuilder html = new StringBuilder("<html><body><ul>");
         try {
-            Files.list(dir).forEach(p -> html.append("<li>").append(p.getFileName()).append("</li>"));
+            Files.list(dir).forEach(p -> html.append("<li><a href=\"").append(p.getFileName()).append("\">")
+                    .append(p.getFileName()).append("</a></li>"));
         } catch (IOException e) {
-            return ResponseBuilder.internalServerError();
+            return ResponseBuilder.internalServerError(server);
         }
         html.append("</ul></body></html>");
         return ResponseBuilder.ok(html.toString().getBytes(), "text/html");
@@ -130,11 +134,11 @@ public class Router implements Routing {
         return "application/octet-stream";
     }
 
-    private Response handleUpload(Request request, RouteConfig route) {
+    private Response handleUpload(Request request, RouteConfig route, ServerConfig server) {
         try {
             String contentType = request.getHeaders().get("content-type");
             if (contentType == null || !contentType.startsWith("multipart/form-data")) {
-                return ResponseBuilder.badRequest();
+                return ResponseBuilder.badRequest(server);
             }
 
             // Extract boundary
@@ -146,7 +150,7 @@ public class Router implements Routing {
             // Find filename
             int filenameIdx = bodyStr.indexOf("filename=\"");
             if (filenameIdx == -1) {
-                return ResponseBuilder.badRequest();
+                return ResponseBuilder.badRequest(server);
             }
             int filenameStart = filenameIdx + 10;
             int filenameEnd = bodyStr.indexOf("\"", filenameStart);
@@ -172,25 +176,28 @@ public class Router implements Routing {
 
         } catch (Exception e) {
             System.err.println("Upload error: " + e.getMessage());
-            return ResponseBuilder.internalServerError();
+            return ResponseBuilder.internalServerError(server);
         }
     }
 
-    private Response handleDelete(Request request, RouteConfig route) {
+    private Response handleDelete(Request request, RouteConfig route, ServerConfig server) {
         try {
             String relative = request.getPath().substring(route.getPath().length());
-            if (relative.isEmpty() || relative.equals("/")) {
-                return ResponseBuilder.badRequest();
+            while (relative.startsWith("/")) {
+                relative = relative.substring(1);
+            }
+            if (relative.isEmpty()) {
+                return ResponseBuilder.badRequest(server);
             }
 
             Path filePath = Path.of(route.getRoot(), relative);
 
             if (!Files.exists(filePath)) {
-                return ResponseBuilder.notFound();
+                return ResponseBuilder.notFound(server);
             }
 
             if (Files.isDirectory(filePath)) {
-                return ResponseBuilder.forbidden();
+                return ResponseBuilder.forbidden(server);
             }
 
             Files.delete(filePath);
@@ -198,7 +205,7 @@ public class Router implements Routing {
 
         } catch (IOException e) {
             System.err.println("Delete error: " + e.getMessage());
-            return ResponseBuilder.internalServerError();
+            return ResponseBuilder.internalServerError(server);
         }
     }
 

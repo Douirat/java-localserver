@@ -1,6 +1,7 @@
 package http.cgi;
 
 import config.RouteConfig;
+import config.ServerConfig;
 import http.request.Request;
 import http.response.Response;
 import http.response.ResponseBuilder;
@@ -15,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 public final class CGIHandler {
     private static final long PROCESS_TIMEOUT_SECONDS = 5;
 
-    public static Response execute(Request request, RouteConfig route) {
+    public static Response execute(Request request, RouteConfig route, ServerConfig server) {
         String relative = request.getPath().substring(route.getPath().length());
         while (relative.startsWith("/")) {
             relative = relative.substring(1);
@@ -24,13 +25,13 @@ public final class CGIHandler {
         Path script = root.resolve(relative).normalize();
 
         if (!script.startsWith(root) || !Files.isRegularFile(script)) {
-            return ResponseBuilder.notFound();
+            return ResponseBuilder.notFound(server);
         }
 
         String extension = extension(script.getFileName().toString());
         String interpreter = route.getCgiExtensions().get(extension);
         if (interpreter == null) {
-            return ResponseBuilder.notFound();
+            return ResponseBuilder.notFound(server);
         }
 
         Process process = null;
@@ -64,28 +65,28 @@ public final class CGIHandler {
 
             if (!process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
-                return ResponseBuilder.gatewayTimeout();
+                return ResponseBuilder.gatewayTimeout(server);
             }
 
             if (process.exitValue() != 0) {
-                return ResponseBuilder.internalServerError();
+                return ResponseBuilder.internalServerError(server);
             }
-            return parseResponse(output);
+            return parseResponse(output, server);
         } catch (IOException e) {
             if (process != null) {
                 process.destroyForcibly();
             }
-            return ResponseBuilder.internalServerError();
+            return ResponseBuilder.internalServerError(server);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             if (process != null) {
                 process.destroyForcibly();
             }
-            return ResponseBuilder.gatewayTimeout();
+            return ResponseBuilder.gatewayTimeout(server);
         }
     }
 
-    private static Response parseResponse(byte[] output) {
+    private static Response parseResponse(byte[] output, ServerConfig server) {
         String text = new String(output, StandardCharsets.ISO_8859_1);
         int separator = text.indexOf("\r\n\r\n");
         int separatorLength = 4;
@@ -94,7 +95,7 @@ public final class CGIHandler {
             separatorLength = 2;
         }
         if (separator < 0) {
-            return ResponseBuilder.internalServerError();
+            return ResponseBuilder.internalServerError(server);
         }
 
         ResponseBuilder response = ResponseBuilder.create();
@@ -112,7 +113,7 @@ public final class CGIHandler {
                     int code = Integer.parseInt(status[0]);
                     response.status(code, status.length > 1 ? status[1] : "");
                 } catch (NumberFormatException e) {
-                    return ResponseBuilder.internalServerError();
+                    return ResponseBuilder.internalServerError(server);
                 }
             } else {
                 response.header(name, value);

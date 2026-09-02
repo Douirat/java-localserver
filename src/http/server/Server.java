@@ -220,7 +220,11 @@ public class Server {
             System.err.println("[parser] Bad request from client: " + ex.getMessage());
             buf.clear(); // discard poisoned bytes
             conn.getParser().reset();
-            Response bad = ResponseBuilder.badRequest();
+            ServerConfig server = null;
+            if (conn.getCandidates() != null && !conn.getCandidates().isEmpty()) {
+                server = VirtualHost.resolve(conn.getCandidates(), null);
+            }
+            Response bad = ResponseBuilder.badRequest(server);
             conn.setResponse(bad);
             conn.setWriteBuffer(ByteBuffer.wrap(bad.toBytes()));
             key.interestOps(SelectionKey.OP_WRITE);
@@ -305,6 +309,11 @@ public class Server {
 
     private void closeQuietly(SelectionKey key) {
         try {
+            if (key.attachment() instanceof ConnectionState conn) {
+                if (conn.getResponse() != null) {
+                    conn.getResponse().closeFileChannel();
+                }
+            }
             key.channel().close();
         } catch (IOException ignored) {
         }
