@@ -4,10 +4,15 @@ import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.*;
 
+import config.ServerConfig;
 import exceptions.BadRequestException;
+import exceptions.PayloadTooLargeException;
 import http.request.Request;
+import http.router.VirtualHost;
 
 public class HttpParser {
+
+    private List<ServerConfig> candidates;
 
     // The parser needs to remember where it is
     // between multiple SocketChannel.read() calls.
@@ -39,6 +44,31 @@ public class HttpParser {
 
     // Accumulates hex-size lines and chunk trailers.
     private final StringBuilder chunkLine = new StringBuilder();
+
+    public HttpParser() {
+    }
+
+    public HttpParser(List<ServerConfig> candidates) {
+        this.candidates = candidates;
+    }
+
+    public void setCandidates(List<ServerConfig> candidates) {
+        this.candidates = candidates;
+    }
+
+    public Map<String, String> getHeaders() {
+        return headers;
+    }
+
+    public long getMaxBodyBytesLimit() {
+        if (candidates != null && !candidates.isEmpty()) {
+            ServerConfig sc = VirtualHost.resolve(candidates, headers.get("host"));
+            if (sc != null) {
+                return sc.getMaxBodyBytes();
+            }
+        }
+        return Long.MAX_VALUE;
+    }
 
     // Parse states of an HTTP request.
     private enum ParseState {
@@ -187,6 +217,8 @@ public class HttpParser {
     }
 
     private void decideBodyMode() {
+        long maxBytes = getMaxBodyBytesLimit();
+
         String te = headers.get("transfer-encoding");
         if (te != null && te.toLowerCase().contains("chunked")) {
             chunkState = ChunkState.CHUNK_SIZE;
@@ -202,6 +234,13 @@ public class HttpParser {
             } catch (NumberFormatException e) {
                 throw new BadRequestException("Invalid Content-Length value: '" + cl + "'");
             }
+            if (expectedBodyLength < 0) {
+                throw new BadRequestException("Negative Content-Length value: '" + cl + "'");
+            }
+            if (expectedBodyLength > maxBytes) {
+                throw new PayloadTooLargeException(
+                        "Content-Length " + expectedBodyLength + " exceeds client_max_body_size limit of " + maxBytes + " bytes");
+            }
             state = (expectedBodyLength > 0) ? ParseState.BODY : ParseState.COMPLETE;
             return;
         }
@@ -211,6 +250,10 @@ public class HttpParser {
     }
 
     private void parseBodyByte(byte b) {
+        long maxBytes = getMaxBodyBytesLimit();
+        if (receivedBodyLength + 1 > maxBytes) {
+            throw new PayloadTooLargeException("Request body exceeds client_max_body_size limit of " + maxBytes + " bytes");
+        }
         body.write(b);
         receivedBodyLength++;
         if (receivedBodyLength == expectedBodyLength) {
@@ -244,17 +287,29 @@ public class HttpParser {
                     throw new BadRequestException("Invalid chunk size: '" + sizeLine + "'");
                 }
 
+                if (chunkRemaining < 0) {
+                    throw new BadRequestException("Negative chunk size: '" + sizeLine + "'");
+                }
+
                 if (chunkRemaining == 0) {
                     // Last-chunk — we still need to consume its trailing \r\n.
                     // Use chunkRemaining == -1 as a sentinel meaning "drain-last-trailer".
                     chunkRemaining = -1;
                     chunkState = ChunkState.CHUNK_TRAIL;
                 } else {
+                    long maxBytes = getMaxBodyBytesLimit();
+                    if (body.size() + chunkRemaining > maxBytes) {
+                        throw new PayloadTooLargeException("Chunked body size exceeds client_max_body_size limit of " + maxBytes + " bytes");
+                    }
                     chunkState = ChunkState.CHUNK_DATA;
                 }
             }
 
             case CHUNK_DATA -> {
+                long maxBytes = getMaxBodyBytesLimit();
+                if (body.size() + 1 > maxBytes) {
+                    throw new PayloadTooLargeException("Chunked body size exceeds client_max_body_size limit of " + maxBytes + " bytes");
+                }
                 body.write(b);
                 chunkRemaining--;
                 if (chunkRemaining == 0) {

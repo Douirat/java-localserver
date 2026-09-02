@@ -28,6 +28,11 @@ public class Router implements Routing {
 
         route.debug();
 
+        if (server != null && server.getMaxBodyBytes() > 0 && request.getBody() != null
+                && request.getBody().length > server.getMaxBodyBytes()) {
+            return ResponseBuilder.payloadTooLarge(server);
+        }
+
         if (!route.getMethods().isEmpty() && !route.getMethods().contains(request.getMethod())) {
             return ResponseBuilder.methodNotAllowed(String.join(", ", route.getMethods()), server);
         }

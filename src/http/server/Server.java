@@ -229,6 +229,20 @@ public class Server {
             conn.setWriteBuffer(ByteBuffer.wrap(bad.toBytes()));
             key.interestOps(SelectionKey.OP_WRITE);
             return;
+        } catch (exceptions.PayloadTooLargeException ex) {
+            // Body exceeds client_max_body_size — send 413
+            System.err.println("[parser] Payload too large from client: " + ex.getMessage());
+            buf.clear(); // discard poisoned bytes
+            conn.getParser().reset();
+            ServerConfig server = null;
+            if (conn.getCandidates() != null && !conn.getCandidates().isEmpty()) {
+                server = VirtualHost.resolve(conn.getCandidates(), conn.getParser().getHeaders().get("host"));
+            }
+            Response tooLarge = ResponseBuilder.payloadTooLarge(server);
+            conn.setResponse(tooLarge);
+            conn.setWriteBuffer(ByteBuffer.wrap(tooLarge.toBytes()));
+            key.interestOps(SelectionKey.OP_WRITE);
+            return;
         }
         buf.compact(); // keep any unconsumed bytes for the next read (pipelining)
 

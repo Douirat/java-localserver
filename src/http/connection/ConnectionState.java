@@ -47,6 +47,7 @@ public class ConnectionState implements Connecting {
         public ConnectionState(SocketChannel client, List<ServerConfig> candidates) {
                 this.client = client;
                 this.candidates = candidates;
+                this.parser.setCandidates(candidates);
                 this.lastActivity = System.currentTimeMillis();
         }
 
