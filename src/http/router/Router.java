@@ -90,11 +90,20 @@ public class Router implements Routing {
         while (relative.startsWith("/")) {
             relative = relative.substring(1);
         }
-        Path filePath = Path.of(route.getRoot(), relative);
+        Path root = Path.of(route.getRoot()).toAbsolutePath().normalize();
+        Path filePath = root.resolve(relative).normalize();
+
+        // Path traversal protection: ensure resolved path is within root
+        if (!filePath.startsWith(root)) {
+            return ResponseBuilder.forbidden(server);
+        }
 
         if (Files.isDirectory(filePath)) {
             if (route.getIndex() != null) {
-                filePath = filePath.resolve(route.getIndex());
+                filePath = filePath.resolve(route.getIndex()).normalize();
+                if (!filePath.startsWith(root)) {
+                    return ResponseBuilder.forbidden(server);
+                }
             } else {
                 return route.isDirectoryListing() ? listDirectory(filePath, server) : ResponseBuilder.forbidden(server);
             }
@@ -169,7 +178,23 @@ public class Router implements Routing {
             }
             int filenameStart = filenameIdx + 10;
             int filenameEnd = bodyStr.indexOf("\"", filenameStart);
-            String filename = bodyStr.substring(filenameStart, filenameEnd);
+            if (filenameEnd == -1) {
+                return ResponseBuilder.badRequest(server);
+            }
+            String rawFilename = bodyStr.substring(filenameStart, filenameEnd).trim();
+            if (rawFilename.isEmpty()) {
+                return ResponseBuilder.badRequest(server);
+            }
+
+            // Extract bare filename to prevent path traversal
+            Path rawPath = Path.of(rawFilename).getFileName();
+            if (rawPath == null) {
+                return ResponseBuilder.badRequest(server);
+            }
+            String filename = rawPath.toString();
+            if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) {
+                return ResponseBuilder.badRequest(server);
+            }
 
             // Find start of file content (after the double CRLF following headers)
             int headerEnd = bodyStr.indexOf("\r\n\r\n", filenameIdx) + 4;
@@ -178,11 +203,20 @@ public class Router implements Routing {
             String endBoundary = boundary + "--";
             int contentEnd = bodyStr.lastIndexOf(endBoundary) - 2; // -2 for the CRLF before boundary
 
+            if (headerEnd < 4 || contentEnd < headerEnd) {
+                return ResponseBuilder.badRequest(server);
+            }
+
             // Extract raw bytes
             byte[] fileBytes = java.util.Arrays.copyOfRange(body, headerEnd, contentEnd);
 
-            // Save to upload dir
-            Path uploadPath = Path.of(route.getUploadDir(), filename);
+            // Save to upload dir and ensure it stays inside uploadDir
+            Path uploadDir = Path.of(route.getUploadDir()).toAbsolutePath().normalize();
+            Path uploadPath = uploadDir.resolve(filename).normalize();
+            if (!uploadPath.startsWith(uploadDir) || !uploadPath.getParent().equals(uploadDir)) {
+                return ResponseBuilder.forbidden(server);
+            }
+
             Files.write(uploadPath, fileBytes);
 
             return ResponseBuilder.ok(
@@ -205,7 +239,13 @@ public class Router implements Routing {
                 return ResponseBuilder.badRequest(server);
             }
 
-            Path filePath = Path.of(route.getRoot(), relative);
+            Path root = Path.of(route.getRoot()).toAbsolutePath().normalize();
+            Path filePath = root.resolve(relative).normalize();
+
+            // Prevent path traversal outside root, or attempting to delete the root directory itself
+            if (!filePath.startsWith(root) || filePath.equals(root)) {
+                return ResponseBuilder.forbidden(server);
+            }
 
             if (!Files.exists(filePath)) {
                 return ResponseBuilder.notFound(server);
