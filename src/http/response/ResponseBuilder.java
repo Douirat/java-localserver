@@ -41,6 +41,18 @@ public class ResponseBuilder implements RespondingBuilder {
     }
 
     @Override
+    public ResponseBuilder cookie(util.Cookie cookie) {
+        response.addCookie(cookie);
+        return this;
+    }
+
+    @Override
+    public ResponseBuilder cookie(String name, String value) {
+        response.addCookie(new util.Cookie(name, value));
+        return this;
+    }
+
+    @Override
     public ResponseBuilder body(byte[] body) {
         response.setBody(body);
         return this;

@@ -4,7 +4,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-// import java.nio.charset.StandardCharsets;
+import util.Session;
+import util.SessionManager;
 
 public class Request implements Requesting {
 
@@ -18,6 +19,7 @@ public class Request implements Requesting {
     private final Map<String, String> queryParameters = new HashMap<>();
     private final Map<String, String> pathVariables = new HashMap<>();
     private final Map<String, String> cookies = new HashMap<>();
+    private Session session;
 
     // In the case of a static file i will need to add the
 
@@ -123,6 +125,41 @@ public class Request implements Requesting {
 
     public byte[] getBody() {
         return body;
+    }
+
+    // Session management
+
+    /**
+     * Returns the existing session for this request if one has been resolved,
+     * or null if there is none. Does NOT create a new session.
+     */
+    @Override
+    public Session getSession() {
+        return getSession(false);
+    }
+
+    @Override
+    public Session getSession(boolean create) {
+        if (session != null && session.isValid()) {
+            return session;
+        }
+        // Try to look up session via SESSIONID cookie.
+        String sessionId = getCookie(SessionManager.DEFAULT_SESSION_COOKIE_NAME);
+        if (sessionId != null) {
+            session = SessionManager.getInstance().getSession(sessionId);
+            if (session != null) {
+                return session;
+            }
+        }
+        if (create) {
+            session = SessionManager.getInstance().createSession();
+        }
+        return session;
+    }
+
+    @Override
+    public void setSession(Session session) {
+        this.session = session;
     }
 
     @Override

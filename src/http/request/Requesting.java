@@ -17,8 +17,10 @@ public interface Requesting {
     void setRequestLine(String[] requestLine);
     void addHeader(String key, String value);
     void addQueryParam(String key, String value);
-    void setBody(byte[] body);
-
-
     byte[] getBody();
+
+    // session management:
+    util.Session getSession();
+    util.Session getSession(boolean create);
+    void setSession(util.Session session);
 }

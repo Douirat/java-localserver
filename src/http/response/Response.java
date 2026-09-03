@@ -4,14 +4,19 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import util.Cookie;
 
 public class Response {
 
     private int statusCode = 200;
     private String statusText = "OK";
     private final Map<String, String> headers = new LinkedHashMap<>();
+    private final List<Cookie> cookies = new ArrayList<>();
 
     // short generated bodies (errors, upload success, directory listing)
     private byte[] body = new byte[0];
@@ -35,6 +40,20 @@ public class Response {
 
     public void addHeader(String key, String value) {
         headers.put(key, value);
+    }
+
+    public void addCookie(Cookie cookie) {
+        if (cookie != null) {
+            cookies.add(cookie);
+        }
+    }
+
+    public void addCookie(String name, String value) {
+        cookies.add(new Cookie(name, value));
+    }
+
+    public List<Cookie> getCookies() {
+        return Collections.unmodifiableList(cookies);
     }
 
     public void setBody(byte[] body) {
@@ -73,7 +92,7 @@ public class Response {
     }
 
     /**
-     * Serializes status line + headers + body into raw HTTP/1.1 bytes ready to
+     * Serializes status line + headers + Set-Cookie headers into raw HTTP/1.1 bytes ready to
      * write.
      */
     // headers only — used before transferTo() in Server.write()
@@ -82,6 +101,9 @@ public class Response {
         sb.append("HTTP/1.1 ").append(statusCode).append(' ').append(statusText).append("\r\n");
         for (Map.Entry<String, String> h : headers.entrySet()) {
             sb.append(h.getKey()).append(": ").append(h.getValue()).append("\r\n");
+        }
+        for (Cookie c : cookies) {
+            sb.append("Set-Cookie: ").append(c.toHeaderValue()).append("\r\n");
         }
         sb.append("\r\n");
         return sb.toString().getBytes(StandardCharsets.US_ASCII);
