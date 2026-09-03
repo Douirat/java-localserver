@@ -29,6 +29,8 @@ public class Server {
 
     private final List<ServerSocketChannel> serverChannels = new ArrayList<>();
 
+    private static final long TIMEOUT_MS = 30_000L;
+
     public Server(List<ServerConfig> configurations) {
         this.configurations = configurations;
     }
@@ -94,13 +96,13 @@ public class Server {
     private void run() throws IOException {
         while (true) {
             /**
-             * Wait until something happens on one of the registered channels.
+             * Wait until something happens on one of the registered channels (max 1 second).
              * For example:
              * - Client A sends data -> OP_READ
              * - Client B is ready to write -> OP_WRITE
              * - New client connects -> OP_ACCEPT
              */
-            selector.select();
+            selector.select(1000);
 
             Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
 
@@ -132,6 +134,9 @@ public class Server {
                     closeQuietly(key);
                 }
             }
+
+            // Check for timed out / hanging connections
+            checkTimeouts();
         }
     }
 
@@ -275,6 +280,8 @@ public class Server {
         ConnectionState conn = (ConnectionState) key.attachment();
         SocketChannel client = conn.getClient();
 
+        conn.updateActivity();
+
         // 1. flush header buffer (or full body buffer for non-streaming responses)
         ByteBuffer buf = conn.getWriteBuffer();
         if (buf != null && buf.hasRemaining()) {
@@ -299,7 +306,18 @@ public class Server {
             response.closeFileChannel();
         }
 
+        // Check if connection should be closed
+        Request req = conn.getRequest();
+        String connHeader = (req != null) ? req.getHeader("connection") : null;
+        if (connHeader != null && "close".equalsIgnoreCase(connHeader.trim())) {
+            closeQuietly(key);
+            return;
+        }
+
         // 3. fully sent — reset for next request
+        conn.updateActivity();
+        conn.setRequest(null);
+        conn.setResponse(null);
         conn.getParser().reset();
         conn.getReadBuffer().clear();
         conn.setWriteBuffer(null);
@@ -307,19 +325,17 @@ public class Server {
         key.interestOps(SelectionKey.OP_READ);
     }
 
-    // /**
-    // * replace with real routing — Router.resolveRoute(config,
-    // * request.getPath()),
-    // * then static file serving / CGI / redirect based on the matched RouteConfig.
-    // * Stub keeps the read/write loop testable end-to-end right now.
-    // */
-    // private Response handle(Request request) {
-    // Response response = new Response(200, "OK");
-    // response.addHeader("Content-Type", "text/plain");
-    // response.setBody(request.getMethod() + " " + request.getPath() + "
-    // received\n");
-    // return response;
-    // }
+    private void checkTimeouts() {
+        long now = System.currentTimeMillis();
+        for (SelectionKey key : selector.keys()) {
+            if (key.isValid() && key.attachment() instanceof ConnectionState conn) {
+                if (now - conn.getLastActivity() > TIMEOUT_MS) {
+                    System.out.println("[server] Connection timeout, closing client: " + conn.getClient());
+                    closeQuietly(key);
+                }
+            }
+        }
+    }
 
     private void closeQuietly(SelectionKey key) {
         try {

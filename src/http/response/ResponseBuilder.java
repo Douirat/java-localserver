@@ -133,6 +133,14 @@ public class ResponseBuilder implements RespondingBuilder {
         return errorPage(500, "Internal Server Error", server);
     }
 
+    public static Response requestTimeout() {
+        return requestTimeout(null);
+    }
+
+    public static Response requestTimeout(ServerConfig server) {
+        return errorPage(408, "Request Timeout", server);
+    }
+
     public static Response gatewayTimeout() {
         return gatewayTimeout(null);
     }

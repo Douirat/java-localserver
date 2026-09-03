@@ -57,11 +57,14 @@ public final class CGIHandler {
             process = builder.start();
 
             byte[] body = request.getBody() == null ? new byte[0] : request.getBody();
-            try (OutputStream out = process.getOutputStream()) {
-                out.write(body);
+            if (body.length > 0) {
+                try (OutputStream out = process.getOutputStream()) {
+                    out.write(body);
+                    out.flush();
+                }
+            } else {
+                process.getOutputStream().close();
             }
-
-            byte[] output = process.getInputStream().readAllBytes();
 
             if (!process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
@@ -71,6 +74,8 @@ public final class CGIHandler {
             if (process.exitValue() != 0) {
                 return ResponseBuilder.internalServerError(server);
             }
+
+            byte[] output = process.getInputStream().readAllBytes();
             return parseResponse(output, server);
         } catch (IOException e) {
             if (process != null) {
