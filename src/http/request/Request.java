@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import util.Session;
-import util.SessionManager;
 
 public class Request implements Requesting {
 
@@ -144,15 +143,15 @@ public class Request implements Requesting {
             return session;
         }
         // Try to look up session via SESSIONID cookie.
-        String sessionId = getCookie(SessionManager.DEFAULT_SESSION_COOKIE_NAME);
+        String sessionId = getCookie(Session.COOKIE_NAME);
         if (sessionId != null) {
-            session = SessionManager.getInstance().getSession(sessionId);
+            session = Session.get(sessionId);
             if (session != null) {
                 return session;
             }
         }
         if (create) {
-            session = SessionManager.getInstance().createSession();
+            session = Session.create();
         }
         return session;
     }
@@ -222,33 +221,6 @@ public class Request implements Requesting {
         if (!map.isEmpty()) {
             sb.append("\n");
         }
-    }
-
-    private String buildRequestTarget() {
-        if (queryParameters.isEmpty()) {
-            return path;
-        }
-        StringBuilder target = new StringBuilder(path).append('?');
-        boolean first = true;
-        for (Map.Entry<String, String> entry : queryParameters.entrySet()) {
-            if (!first)
-                target.append('&');
-            target.append(entry.getKey()).append('=').append(entry.getValue());
-            first = false;
-        }
-        return target.toString();
-    }
-
-    private String buildCookieHeader() {
-        StringBuilder cookieHeader = new StringBuilder();
-        boolean first = true;
-        for (Map.Entry<String, String> entry : cookies.entrySet()) {
-            if (!first)
-                cookieHeader.append("; ");
-            cookieHeader.append(entry.getKey()).append('=').append(entry.getValue());
-            first = false;
-        }
-        return cookieHeader.toString();
     }
 
     public void debug() {

@@ -14,7 +14,6 @@ import http.response.Response;
 import http.response.ResponseBuilder;
 import util.Cookie;
 import util.Session;
-import util.SessionManager;
 
 public class Router implements Routing {
 
@@ -265,56 +264,20 @@ public class Router implements Routing {
     }
 
     // -----------------------------------------------------------------------
-    // Built-in /session endpoint
-    // Demonstrates working session and cookie management for the audit.
-    //
-    // GET  /session          — show session info + visit counter
-    // POST /session          — set a named attribute ("name" query param)
-    // DELETE /session        — invalidate the session
+    // Built-in /session endpoint for audit demonstration
     // -----------------------------------------------------------------------
     private Response handleSessionEndpoint(Request request) {
-        String method = request.getMethod();
-
-        // ---- DELETE: invalidate session ----
-        if ("DELETE".equals(method)) {
+        if ("DELETE".equals(request.getMethod())) {
             Session existing = request.getSession(false);
-            String id = (existing != null) ? existing.getId() : null;
-            if (id != null) {
-                SessionManager.getInstance().invalidateSession(id);
+            if (existing != null) {
+                Session.invalidate(existing.getId());
             }
-            Response resp = ResponseBuilder.create()
-                    .status(200, "OK")
-                    .header("Content-Type", "text/html")
-                    .body("<html><body><h1>Session invalidated</h1></body></html>")
-                    .build();
-            // Clear the cookie by setting Max-Age=0
-            resp.addCookie(
-                Cookie.of(SessionManager.DEFAULT_SESSION_COOKIE_NAME, "")
-                    .setPath("/")
-                    .setMaxAge(0)
-                    .setHttpOnly(true)
-            );
+            Response resp = ResponseBuilder.ok("Session invalidated".getBytes(), "text/plain");
+            resp.addCookie(Cookie.of(Session.COOKIE_NAME, "").setPath("/").setMaxAge(0));
             return resp;
         }
 
-        // ---- POST: set "name" attribute on session ----
-        if ("POST".equals(method)) {
-            Session session = request.getSession(true); // create if absent
-            String name = request.getQueryParameters().getOrDefault("name", "anonymous");
-            session.setAttribute("name", name);
-            session.setAttribute("lastSet", String.valueOf(System.currentTimeMillis()));
-
-            Response resp = ResponseBuilder.create()
-                    .status(200, "OK")
-                    .header("Content-Type", "text/html")
-                    .body(buildSessionPage(session, "Attribute 'name' set to: " + name))
-                    .build();
-            ensureSessionCookie(resp, session);
-            return resp;
-        }
-
-        // ---- GET: show session info / visit counter ----
-        Session session = request.getSession(true); // create if absent
+        Session session = request.getSession(true);
         int visits = 1;
         Object prev = session.getAttribute("visits");
         if (prev instanceof Integer) {
@@ -322,52 +285,17 @@ public class Router implements Routing {
         }
         session.setAttribute("visits", visits);
 
-        Response resp = ResponseBuilder.create()
-                .status(200, "OK")
-                .header("Content-Type", "text/html")
-                .body(buildSessionPage(session, "Visit #" + visits))
-                .build();
-        ensureSessionCookie(resp, session);
+        String html = "<!DOCTYPE html><html><body>"
+                + "<h1>Session & Cookie Demo</h1>"
+                + "<p><b>Session ID:</b> " + session.getId() + "</p>"
+                + "<p><b>Visits:</b> " + visits + "</p>"
+                + "<p><b>Active Sessions:</b> " + Session.getActiveCount() + "</p>"
+                + "<p>Refresh this page to increment the visit counter!</p>"
+                + "</body></html>";
+
+        Response resp = ResponseBuilder.ok(html.getBytes(), "text/html");
+        resp.addCookie(Cookie.of(Session.COOKIE_NAME, session.getId()).setPath("/").setHttpOnly(true));
         return resp;
-    }
-
-    // Adds a Set-Cookie header for the session ID only when the session is new
-     
-    private void ensureSessionCookie(Response response, Session session) {
-        Cookie sessionCookie = Cookie.of(SessionManager.DEFAULT_SESSION_COOKIE_NAME, session.getId())
-                .setPath("/")
-                .setMaxAge(session.getMaxInactiveInterval())
-                .setHttpOnly(true)
-                .setSameSite("Lax");
-        response.addCookie(sessionCookie);
-    }
-
-    // Build a simple HTML page showing the current session's state.
-    private String buildSessionPage(Session session, String message) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("<!DOCTYPE html><html><head><title>Session Demo</title></head><body>");
-        sb.append("<h1>Session Demo</h1>");
-        sb.append("<p><strong>").append(message).append("</strong></p>");
-        sb.append("<hr>");
-        sb.append("<p><b>Session ID:</b> ").append(session.getId()).append("</p>");
-        sb.append("<p><b>Created at:</b> ").append(new java.util.Date(session.getCreatedAt())).append("</p>");
-        sb.append("<p><b>Last accessed:</b> ").append(new java.util.Date(session.getLastAccessedAt())).append("</p>");
-        sb.append("<p><b>Active sessions:</b> ").append(SessionManager.getInstance().getActiveSessionCount()).append("</p>");
-        sb.append("<h3>Attributes:</h3><ul>");
-        for (String key : session.getAttributeNames()) {
-            sb.append("<li><b>").append(key).append("</b>: ").append(session.getAttribute(key)).append("</li>");
-        }
-        sb.append("</ul>");
-        sb.append("<hr>");
-        sb.append("<p>Refresh this page to increment the visit counter.</p>");
-        sb.append("<form method='POST' action='/session?name=YourName'><button>Set 'name' attribute</button></form>");
-        sb.append("<form method='POST' action='/session?name=' onsubmit=\"this.action='/session?name='+document.getElementById('n').value\">");
-        sb.append("  <input id='n' type='text' placeholder='Enter name'>");
-        sb.append("  <button type='submit'>Set custom name</button>");
-        sb.append("</form>");
-        sb.append("<br><a href='/session'>Refresh</a>");
-        sb.append("</body></html>");
-        return sb.toString();
     }
 
 }
