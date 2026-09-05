@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import util.Session;
 
-public class Request implements Requesting {
+public class Request {
 
     private String method;
     private String path;
@@ -132,12 +132,10 @@ public class Request implements Requesting {
      * Returns the existing session for this request if one has been resolved,
      * or null if there is none. Does NOT create a new session.
      */
-    @Override
     public Session getSession() {
         return getSession(false);
     }
 
-    @Override
     public Session getSession(boolean create) {
         if (session != null && session.isValid()) {
             return session;
@@ -156,7 +154,6 @@ public class Request implements Requesting {
         return session;
     }
 
-    @Override
     public void setSession(Session session) {
         this.session = session;
     }
@@ -221,10 +218,5 @@ public class Request implements Requesting {
         if (!map.isEmpty()) {
             sb.append("\n");
         }
-    }
-
-    public void debug() {
-        System.out.println("request debugging");
-        System.out.println(this.toString());
     }
 }

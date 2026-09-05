@@ -48,34 +48,13 @@ public class Server {
         Map<String, List<ServerConfig>> byAddress = new HashMap<>();
 
         for (ServerConfig sc : configurations) {
-            sc.debug();
             for (int port : sc.getPorts()) {
                 String key = sc.getHost() + ":" + port;
                 byAddress.computeIfAbsent(key, k -> new ArrayList<>()).add(sc);
             }
         }
 
-        // for (Map.Entry<String, List<ServerConfig>> entry : byAddress.entrySet()) {
-
-        // String address = entry.getKey();
-        // List<ServerConfig> configs = entry.getValue();
-
-        // System.out.println("Address: " + address);
-
-        // for (ServerConfig config : configs) {
-        // System.out.println("Config: " + config);
-        // }
-        // }
-
         for (Map.Entry<String, List<ServerConfig>> entry : byAddress.entrySet()) {
-
-            System.err.println("------------------------");
-            System.out.println("the key: " + entry.getKey() + " ---> ");
-            for (var sc : entry.getValue()) {
-                sc.debug();
-            }
-            System.err.println("------------------------");
-
             String addr = entry.getKey();
             int sep = addr.lastIndexOf(':');
             String host = addr.substring(0, sep);
@@ -261,8 +240,6 @@ public class Server {
         ServerConfig server = VirtualHost.resolve(conn.getCandidates(), request.getHeader("host"));
 
         Response response = router.route(request, server);
-
-        response.debug();
         conn.setResponse(response);
 
         if (response.isStreaming()) {

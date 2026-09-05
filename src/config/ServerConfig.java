@@ -84,13 +84,4 @@ public class ServerConfig {
                 ",\n  routes=" + routes +
                 "\n}";
     }
-
-    public void debug(){
-        System.out.println("debuging server config");
-        System.out.println(this.toString());
-        for(var sr: this.getRoutes()){
-           sr.debug();
-        }
-    }
-
 }

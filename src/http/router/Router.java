@@ -15,14 +15,11 @@ import http.response.ResponseBuilder;
 import util.Cookie;
 import util.Session;
 
-public class Router implements Routing {
+public class Router {
 
     private static final String SESSION_ROUTE = "/session";
 
-    @Override
     public Response route(Request request, ServerConfig server) {
-
-        request.debug();
 
         // Built-in session demo endpoint — served before any config-file routes.
         if (request.getPath().equals(SESSION_ROUTE) || request.getPath().equals(SESSION_ROUTE + "/")) {
@@ -34,8 +31,6 @@ public class Router implements Routing {
         if (route == null) {
             return ResponseBuilder.notFound(server);
         }
-
-        route.debug();
 
         if (server != null && server.getMaxBodyBytes() > 0 && request.getBody() != null
                 && request.getBody().length > server.getMaxBodyBytes()) {

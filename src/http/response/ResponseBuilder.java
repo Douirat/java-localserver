@@ -9,7 +9,7 @@ import java.util.Map;
 
 import config.ServerConfig;
 
-public class ResponseBuilder implements RespondingBuilder {
+public class ResponseBuilder {
 
     private final Response response = new Response();
 
@@ -20,19 +20,16 @@ public class ResponseBuilder implements RespondingBuilder {
         return new ResponseBuilder();
     }
 
-    @Override
     public ResponseBuilder status(int code, String text) {
         response.setStatus(code, text);
         return this;
     }
 
-    @Override
     public ResponseBuilder header(String name, String value) {
         response.addHeader(name, value);
         return this;
     }
 
-    @Override
     public ResponseBuilder headers(Map<String, String> headers) {
         for (Map.Entry<String, String> e : headers.entrySet()) {
             response.addHeader(e.getKey(), e.getValue());
@@ -40,31 +37,26 @@ public class ResponseBuilder implements RespondingBuilder {
         return this;
     }
 
-    @Override
     public ResponseBuilder cookie(util.Cookie cookie) {
         response.addCookie(cookie);
         return this;
     }
 
-    @Override
     public ResponseBuilder cookie(String name, String value) {
         response.addCookie(new util.Cookie(name, value));
         return this;
     }
 
-    @Override
     public ResponseBuilder body(byte[] body) {
         response.setBody(body);
         return this;
     }
 
-    @Override
     public ResponseBuilder body(String body) {
         response.setBody(body);
         return this;
     }
 
-    @Override
     public Response build() {
         return response;
     }

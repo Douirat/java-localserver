@@ -7,18 +7,17 @@ import http.server.Server;
 
 public class Main {
     public static void main(String[] args) {
+        if (args.length < 1) {
+            System.err.println("Usage: java Main <config_file>");
+            System.exit(1);
+        }
+
         String configFilePath = args[0];
 
         try {
             List<ServerConfig> configurations = new ConfigLoader(configFilePath).parse();
-            // for(var con: servers){
-            //     System.out.println(con.toString());
-            //     for(var r: con.getRoutes()){
-            //         System.out.println(r.toString());
-            //     }
-            // }
             Server server = new Server(configurations);
-            server.start(); // blocks forever in the select loop
+            server.start(); // Blocks forever in the single-threaded event loop
 
         } catch (IOException e) {
             System.err.println("Failed to read config file: " + e.getMessage());

@@ -138,8 +138,4 @@ public class Response {
                 (isStreaming() ? ", streaming=true" : ", body='" + new String(body, StandardCharsets.UTF_8) + "'") +
                 '}';
     }
-
-    public void debug() {
-        System.out.println("debug the response ----> " + this.toString());
-    }
 }
