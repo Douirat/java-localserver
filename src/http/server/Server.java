@@ -1,6 +1,5 @@
 package http.server;
 
-import config.RouteConfig;
 import config.ServerConfig;
 import exceptions.BadRequestException;
 import http.connection.ConnectionState;

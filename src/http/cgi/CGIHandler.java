@@ -24,6 +24,10 @@ public final class CGIHandler {
         Path root = Path.of(route.getRoot()).toAbsolutePath().normalize();
         Path script = root.resolve(relative).normalize();
 
+        if (Files.isDirectory(script) && route.getIndex() != null) {
+            script = script.resolve(route.getIndex()).normalize();
+        }
+
         if (!script.startsWith(root) || !Files.isRegularFile(script)) {
             return ResponseBuilder.notFound(server);
         }
@@ -61,9 +65,14 @@ public final class CGIHandler {
                 try (OutputStream out = process.getOutputStream()) {
                     out.write(body);
                     out.flush();
+                } catch (IOException ignored) {
+                    // Script may have closed its stdin or exited early
                 }
             } else {
-                process.getOutputStream().close();
+                try {
+                    process.getOutputStream().close();
+                } catch (IOException ignored) {
+                }
             }
 
             if (!process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {

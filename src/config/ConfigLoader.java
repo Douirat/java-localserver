@@ -283,6 +283,14 @@ public class ConfigLoader {
                         valid = false;
                         break;
                     }
+                } else {
+                    String unnamedKey = hostPortKey + ":<unnamed>";
+                    if (!seenNames.add(unnamedKey)) {
+                        System.err.println(
+                                "[config error] Duplicate server block without distinct server_name for " + hostPortKey);
+                        valid = false;
+                        break;
+                    }
                 }
 
                 if (server.isDefaultServer() && !defaultHostPort.add(hostPortKey)) {
