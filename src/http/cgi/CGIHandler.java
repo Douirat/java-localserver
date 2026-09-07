@@ -65,14 +65,9 @@ public final class CGIHandler {
                 try (OutputStream out = process.getOutputStream()) {
                     out.write(body);
                     out.flush();
-                } catch (IOException ignored) {
-                    // Script may have closed its stdin or exited early
                 }
             } else {
-                try {
-                    process.getOutputStream().close();
-                } catch (IOException ignored) {
-                }
+                process.getOutputStream().close();
             }
 
             if (!process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
