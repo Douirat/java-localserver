@@ -1,19 +1,19 @@
 package util;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Lightweight in-memory session manager and session representation.
  */
 public class Session {
     public static final String COOKIE_NAME = "SESSIONID";
-    private static final Map<String, Session> SESSIONS = new ConcurrentHashMap<>();
+    private static final Map<String, Session> SESSIONS = new HashMap<>();
     private static final long TIMEOUT_MS = 30 * 60 * 1000L; // 30 minutes
 
     private final String id;
-    private final Map<String, Object> attributes = new ConcurrentHashMap<>();
+    private final Map<String, Object> attributes = new HashMap<>();
     private long lastAccessed;
 
     public Session(String id) {

@@ -65,9 +65,13 @@ public final class CGIHandler {
                 try (OutputStream out = process.getOutputStream()) {
                     out.write(body);
                     out.flush();
+                } catch (IOException ignored) {
                 }
             } else {
-                process.getOutputStream().close();
+                try {
+                    process.getOutputStream().close();
+                } catch (IOException ignored) {
+                }
             }
 
             if (!process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
